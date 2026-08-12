@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "command": "bars",
+  "required_bar_fields": [
+    "symbol",
+    "timeframe",
+    "ts",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "amount",
+    "status",
+    "source",
+    "adjust"
+  ]
+}

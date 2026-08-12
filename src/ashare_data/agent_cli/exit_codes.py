@@ -1,0 +1,8 @@
+from __future__ import annotations
+
+SUCCESS = 0
+INVALID_REQUEST = 2
+CONTRACT_ERROR = 3
+UNAVAILABLE = 4
+PROVIDER_FAILURE = 5
+INTERNAL_ERROR = 6

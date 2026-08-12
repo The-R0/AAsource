@@ -1,0 +1,14 @@
+.venv/
+.pytest_cache/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.env
+
+# Runtime data and generated consumer artifacts are not source code.
+/storage/
+/consumer_views/
+/symbols/
+/universes/

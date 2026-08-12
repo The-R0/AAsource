@@ -1,0 +1,39 @@
+schema_version: 1
+
+canonical:
+  security_master: {provider: tdx, temporal_scope: current}
+  daily_bars: {provider: tdx}
+  realtime_quotes: {provider: tencent}
+  opening_call_auction_snapshot: {provider: tencent, temporal_scope: current}
+  intraday_1m: {provider: tdx}
+  corporate_actions:
+    provider: tdx
+    adjust_status: unsupported
+    note: "raw corporate_actions stored; qfq/hfq blocked in CLI v1"
+
+reference:
+  dragon_tiger: {provider: eastmoney}
+  dragon_tiger_seats: {provider: eastmoney}
+  institutional_dragon_tiger: {provider: eastmoney}
+  block_trades: {provider: eastmoney}
+  money_flow: {provider: eastmoney}
+  shareholders: {provider: eastmoney}
+  fund_holdings: {provider: eastmoney}
+
+fallback_policy:
+  silent_fallback: false
+
+tdx_hosts:
+  - {host: 180.153.18.170, port: 7709}
+  - {host: 110.41.147.114, port: 7709}
+  - {host: 124.70.176.52, port: 7709}
+  - {host: 121.36.54.217, port: 7709}
+  - {host: 60.191.117.167, port: 7709}
+  - {host: 115.238.56.198, port: 7709}
+
+timeout_seconds: 8
+default_count: 1200
+minimum_rows: 1000
+minimum_symbol_coverage: 0.98
+minimum_amount_coverage: 0.95
+workers: 8

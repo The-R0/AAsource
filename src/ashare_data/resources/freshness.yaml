@@ -1,0 +1,9 @@
+schema_version: 1
+quotes: {trading_hours: 10s, outside_trading_hours: 24h}
+security_master: {max_age: 24h}
+daily_bars: {max_age_trading_days: 1}
+intraday_1m: {trading_hours: 60s, outside_trading_hours: 24h}
+reference:
+  dragon_tiger: {max_age: 24h}
+  block_trades: {max_age: 24h}
+  money_flow: {max_age: 24h}
