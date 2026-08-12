@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "command": "quotes",
+  "required_envelope": [
+    "schema_version",
+    "command",
+    "request_id",
+    "as_of",
+    "status",
+    "degraded",
+    "sources",
+    "warnings",
+    "data",
+    "error"
+  ],
+  "required_quote_fields": [
+    "symbol",
+    "as_of",
+    "last",
+    "open",
+    "high",
+    "low",
+    "previous_close",
+    "change",
+    "change_pct",
+    "volume",
+    "amount",
+    "turnover_rate",
+    "source",
+    "status"
+  ]
+}

@@ -1,0 +1,100 @@
+schema_version: 1
+
+trend_core:
+  version: 1
+  availability: available
+  features:
+    - {id: ma, params: {window: 5}}
+    - {id: ma, params: {window: 20}}
+    - {id: ma, params: {window: 60}}
+    - {id: ma, params: {window: 80}}
+    - {id: return, params: {window: 1}}
+    - {id: return, params: {window: 5}}
+    - {id: return, params: {window: 20}}
+    - {id: return, params: {window: 60}}
+    - {id: rolling_high, params: {window: 20}}
+    - {id: rolling_high, params: {window: 60}}
+    - {id: rolling_high, params: {window: 120}}
+    - {id: rolling_low, params: {window: 20}}
+    - {id: rolling_low, params: {window: 60}}
+    - {id: distance_to_ma, params: {window: 20}}
+    - {id: distance_to_high, params: {window: 20}}
+    - {id: distance_to_high, params: {window: 60}}
+    - {id: breakout_pct, params: {window: 20}}
+    - {id: breakout_pct, params: {window: 60}}
+
+volume_core:
+  version: 1
+  availability: available
+  features:
+    - {id: average_volume, params: {window: 5}}
+    - {id: average_volume, params: {window: 20}}
+    - {id: average_amount, params: {window: 5}}
+    - {id: average_amount, params: {window: 20}}
+    - {id: turnover_rate, params: {}}
+    - {id: average_turnover, params: {window: 5}}
+    - {id: average_turnover, params: {window: 20}}
+    - {id: volume_ratio, params: {window: 5}}
+    - {id: amount_ratio, params: {window: 5}}
+    - {id: amount_percentile, params: {window: 20}}
+    - {id: turnover_percentile, params: {window: 20}}
+
+volatility_core:
+  version: 1
+  availability: available
+  features:
+    - {id: atr, params: {window: 14}}
+    - {id: volatility, params: {window: 20}}
+    - {id: volatility, params: {window: 60}}
+    - {id: amplitude, params: {}}
+    - {id: average_amplitude, params: {window: 20}}
+    - {id: atr_percentile, params: {window: 60}}
+
+intraday_core:
+  version: 1
+  availability: available
+  requires_timeframe: 1m
+  features:
+    - {id: vwap, params: {window: 240}}
+    - {id: distance_to_vwap, params: {window: 240}}
+    - {id: intradaily_return, params: {}}
+    - {id: distance_to_intraday_high, params: {}}
+    - {id: distance_to_intraday_low, params: {}}
+    - {id: intradaily_volume_ratio, params: {window: 5}}
+
+relative_core:
+  version: 1
+  availability: partial
+  note: "Index-relative returns available when benchmark bars exist; sector ranks await sector membership."
+  features:
+    - {id: relative_return_index, params: {window: 1, benchmark: SH000300}}
+    - {id: relative_return_index, params: {window: 5, benchmark: SH000300}}
+    - {id: relative_return_index, params: {window: 20, benchmark: SH000300}}
+    - {id: relative_return_sector, params: {window: 1}}
+    - {id: relative_return_sector, params: {window: 5}}
+    - {id: relative_return_sector, params: {window: 20}}
+    - {id: sector_return_rank, params: {}}
+    - {id: sector_amount_rank, params: {}}
+    - {id: sector_turnover_rank, params: {}}
+
+technical_extended:
+  version: 1
+  availability: available
+  features:
+    - {id: ema, params: {window: 5}}
+    - {id: ema, params: {window: 20}}
+    - {id: ema, params: {window: 60}}
+    - {id: macd, params: {fast: 12, slow: 26, signal: 9, field: macd}}
+    - {id: macd, params: {fast: 12, slow: 26, signal: 9, field: signal}}
+    - {id: macd, params: {fast: 12, slow: 26, signal: 9, field: histogram}}
+    - {id: rsi, params: {window: 6}}
+    - {id: rsi, params: {window: 14}}
+    - {id: boll, params: {window: 20, field: mid}}
+    - {id: boll, params: {window: 20, field: upper}}
+    - {id: boll, params: {window: 20, field: lower}}
+    - {id: obv, params: {}}
+
+agent_core:
+  version: 1
+  availability: available
+  includes: [trend_core, volume_core, volatility_core, relative_core]
