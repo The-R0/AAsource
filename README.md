@@ -34,6 +34,21 @@ python -m ashare_data --version
 python -m ashare_data health --pretty
 ```
 
+### 直接交给 Agent
+
+把下面这段连同仓库链接一起发给 Agent 即可：
+
+```text
+安装并使用 https://github.com/The-R0/AAsource 。
+要求：
+1. 使用 Python 3.11 或 3.12 创建独立虚拟环境。
+2. 执行：python -m pip install --no-cache-dir https://github.com/The-R0/AAsource/archive/refs/heads/main.zip
+3. 执行 aasource --version 和 aasource health --pretty 验证安装；如果找不到 aasource，改用 python -m ashare_data。
+4. 先执行 aasource catalog --pretty 查看完整能力，再按任务调用对应命令。
+5. K 线必须设置 --start/--end 或 --limit，不要无边界拉取数据。
+6. 只解析 stdout 的 JSON；检查 status、degraded、warnings、sources 和 error，不要把部分失败当成完整成功。
+```
+
 ## 使用
 
 ```bash
@@ -121,6 +136,30 @@ K 线可以用 `--start`、`--end` 和 `--limit` 限制时间范围和返回量�
 | --- | --- |
 | `aasource catalog --pretty` | 返回完整能力、数据源、单位和特征集合 |
 | `aasource health --pretty` | 检查通达信、腾讯和东方财富是否可访问 |
+
+## 数据格式
+
+不同来源的字段会先转换成同一套 JSON，调用方不需要分别处理通达信、腾讯和东方财富的原始格式。
+
+| 项目 | 统一规则 |
+| --- | --- |
+| 证券代码 | 股票和指数使用 `SH600519`、`SZ000001`；板块使用 `BK0475` |
+| 时间 | ISO 8601，上海时区，例如 `2026-08-13T14:57:01+08:00` |
+| 价格 | `float`，单位为元/股 |
+| 成交量 | `int`，单位为股；上游的“手”会换算为股 |
+| 成交额 | `float`，单位为元 |
+| 比率 | 涨跌幅、换手率和特征收益均为百分点；`0.92` 表示 `0.92%` |
+| 缺失值 | 使用 JSON `null`，不伪造为 `0` |
+| K 线状态 | 日线通常为 `final`，盘中分钟线为 `provisional` |
+| 数据来源 | 每个响应通过 `sources` 标明 provider 和用途，行情记录也保留 `source` |
+| 批量结果 | 每个标的单独返回 `status` 和 `error`，一个标的失败不会隐藏其他结果 |
+
+所有命令共用同一个外层结构：
+
+```text
+schema_version, command, request_id, as_of, status, degraded,
+sources, warnings, freshness, provenance, data, error
+```
 
 查看全部命令和参数：
 
