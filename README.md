@@ -11,13 +11,13 @@ A 股行情命令行工具，面向 Agent 和脚本，统一返回 JSON。
 需要 Python 3.11 或 3.12。下面这条命令不要求本机安装 Git：
 
 ```bash
-python -m pip install https://github.com/The-R0/AAsource/archive/refs/heads/main.zip
+python -m pip install --no-cache-dir https://github.com/The-R0/AAsource/archive/refs/heads/main.zip
 ```
 
 如果使用 `pipx`：
 
 ```bash
-pipx install https://github.com/The-R0/AAsource/archive/refs/heads/main.zip
+pipx install --pip-args=--no-cache-dir https://github.com/The-R0/AAsource/archive/refs/heads/main.zip
 ```
 
 ## 使用
