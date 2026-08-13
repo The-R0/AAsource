@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 
+from ashare_data import __version__
 from ashare_data.agent_cli.commands import bars as bars_cmd
 from ashare_data.agent_cli.commands import auction as auction_cmd
 from ashare_data.agent_cli.commands import bars_batch as bars_batch_cmd
@@ -48,10 +49,19 @@ def build_parser() -> argparse.ArgumentParser:
     common.add_argument("--pretty", action="store_true", help="indent JSON for humans")
 
     parser = ContractArgumentParser(
-        prog="AAsource",
-        description="AAsource — A-share fact-layer CLI",
+        prog="aasource",
+        description="A 股行情 JSON CLI",
+        epilog=(
+            "examples:\n"
+            "  aasource health --pretty\n"
+            "  aasource quotes SH600519 SZ000001 --pretty\n"
+            "  aasource bars SH600036 --tf 1d --limit 5 --pretty\n"
+            "  aasource catalog --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         parents=[common],
     )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
     def add(name: str, **kwargs):
@@ -294,6 +304,10 @@ def dispatch(args) -> tuple[dict, int]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            reconfigure(encoding="utf-8")
     parser = build_parser()
     args = None
     pretty = False

@@ -8,29 +8,29 @@ A 股行情命令行工具，面向 Agent 和脚本，统一返回 JSON。
 
 ## 安装
 
-需要 Python 3.11 或 3.12。
+需要 Python 3.11 或 3.12。下面这条命令不要求本机安装 Git：
 
 ```bash
-pipx install git+https://github.com/The-R0/AAsource.git
+python -m pip install https://github.com/The-R0/AAsource/archive/refs/heads/main.zip
 ```
 
-也可以安装到当前 Python 环境：
+如果使用 `pipx`：
 
 ```bash
-pip install git+https://github.com/The-R0/AAsource.git
+pipx install https://github.com/The-R0/AAsource/archive/refs/heads/main.zip
 ```
 
 ## 使用
 
 ```bash
 # 实时行情
-AAsource quotes SH600519 SZ000001 --pretty
+aasource quotes SH600519 SZ000001 --pretty
 
 # 最近 5 根日 K
-AAsource bars SH600036 --tf 1d --limit 5 --pretty
+aasource bars SH600036 --tf 1d --limit 5 --pretty
 
 # 市场涨跌分布
-AAsource market breadth --pretty
+aasource market breadth --pretty
 ```
 
 股票代码使用 `SH600519`、`SZ000001`，板块代码使用 `BK0475`。
@@ -52,9 +52,11 @@ AAsource market breadth --pretty
 查看全部命令和参数：
 
 ```bash
-AAsource --help
-AAsource bars --help
+aasource --help
+aasource bars --help
 ```
+
+如果系统找不到 `aasource` 命令，使用 `python -m ashare_data`，参数完全相同。
 
 ## 返回结果
 

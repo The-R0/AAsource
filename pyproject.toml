@@ -25,7 +25,7 @@ Issues = "https://github.com/The-R0/AAsource/issues"
 dev = ["pytest>=8,<9"]
 
 [project.scripts]
-AAsource = "ashare_data.agent_cli.main:main"
+aasource = "ashare_data.agent_cli.main:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ashare_data"]
