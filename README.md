@@ -56,7 +56,7 @@ stdout 永远是同一套 JSON envelope，失败也是 JSON，不走 stderr 文�
 }
 ```
 
-`status=ok` 且 `degraded=true` 表示部分成功，退出码仍是 0。完整字段、错误码和退出码见 [CONTRACT.md](CONTRACT.md)。
+`status=ok` 且 `degraded=true` 表示部分成功，退出码仍是 0。
 
 ## 适合 / 不适合
 
@@ -134,12 +134,10 @@ pip install -e ".[dev]"
 pytest -q
 ```
 
-架构规则见 [ARCHITECTURE.md](ARCHITECTURE.md)，领域词汇见 [CONTEXT.md](CONTEXT.md)。
-
 ## 许可证与数据源
 
 本项目原创代码采用 [MIT License](LICENSE)。该许可证不覆盖第三方行情、服务端点、商标、协议或内容。本项目与通达信、腾讯、东方财富及任何交易所不存在隶属、授权或背书关系。
 
 运行时依赖 `pytdx==1.72`。它不是本仓库的一部分；上游未声明标准开源许可证，并写明仅供个人研究、不要商业使用。使用前请自行阅读其条款。
 
-仓库和 wheel 都不分发行情数据库，也不保证第三方接口的准确性、连续性或可用性。依赖与数据源边界见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。本项目不构成投资建议。
+仓库和 wheel 都不分发行情数据库，也不保证第三方接口的准确性、连续性或可用性。本项目不构成投资建议。
