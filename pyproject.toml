@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ashare-data-hub"
+name = "AAsource"
 version = "1.0.0"
-description = "Deterministic A-share market facts for agents and scripts"
+description = "AAsource: deterministic A-share market facts for agents and scripts"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11,<3.13"
@@ -25,7 +25,7 @@ Issues = "https://github.com/The-R0/AAsource/issues"
 dev = ["pytest>=8,<9"]
 
 [project.scripts]
-ashare-data = "ashare_data.agent_cli.main:main"
+AAsource = "ashare_data.agent_cli.main:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ashare_data"]

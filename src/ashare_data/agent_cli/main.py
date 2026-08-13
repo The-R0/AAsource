@@ -48,8 +48,8 @@ def build_parser() -> argparse.ArgumentParser:
     common.add_argument("--pretty", action="store_true", help="indent JSON for humans")
 
     parser = ContractArgumentParser(
-        prog="ashare-data",
-        description="A-share Agent fact-layer CLI",
+        prog="AAsource",
+        description="AAsource — A-share fact-layer CLI",
         parents=[common],
     )
     sub = parser.add_subparsers(dest="command", required=True)
