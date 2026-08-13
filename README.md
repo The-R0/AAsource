@@ -20,6 +20,20 @@ python -m pip install --no-cache-dir https://github.com/The-R0/AAsource/archive/
 pipx install --pip-args=--no-cache-dir https://github.com/The-R0/AAsource/archive/refs/heads/main.zip
 ```
 
+安装完成后检查：
+
+```bash
+aasource --version
+aasource health --pretty
+```
+
+如果系统找不到 `aasource`，可以直接使用模块入口：
+
+```bash
+python -m ashare_data --version
+python -m ashare_data health --pretty
+```
+
 ## 使用
 
 ```bash
@@ -54,9 +68,8 @@ aasource market breadth --pretty
 ```bash
 aasource --help
 aasource bars --help
+aasource catalog --pretty
 ```
-
-如果系统找不到 `aasource` 命令，使用 `python -m ashare_data`，参数完全相同。
 
 ## 返回结果
 
