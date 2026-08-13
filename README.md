@@ -34,20 +34,21 @@ python -m ashare_data --version
 python -m ashare_data health --pretty
 ```
 
-### 直接交给 Agent
+### 交给 Agent 安装
 
-把下面这段连同仓库链接一起发给 Agent 即可：
+如果你使用 Codex、Claude Code 等编程 Agent，直接把仓库链接发给它：
 
 ```text
-安装并使用 https://github.com/The-R0/AAsource 。
-要求：
-1. 使用 Python 3.11 或 3.12 创建独立虚拟环境。
-2. 执行：python -m pip install --no-cache-dir https://github.com/The-R0/AAsource/archive/refs/heads/main.zip
-3. 执行 aasource --version 和 aasource health --pretty 验证安装；如果找不到 aasource，改用 python -m ashare_data。
-4. 先执行 aasource catalog --pretty 查看完整能力，再按任务调用对应命令。
-5. K 线必须设置 --start/--end 或 --limit，不要无边界拉取数据。
-6. 只解析 stdout 的 JSON；检查 status、degraded、warnings、sources 和 error，不要把部分失败当成完整成功。
+请根据 README 安装并验证这个项目：https://github.com/The-R0/AAsource
 ```
+
+也可以复制这条更完整的指令：
+
+```text
+请安装 https://github.com/The-R0/AAsource，按 README 创建独立 Python 环境并完成安装，然后运行版本检查和 health 检查。安装成功后告诉我如何调用数据，不要修改项目源码。
+```
+
+Agent 会从本 README 获取 Python 版本、安装命令、验证方法和 CLI 用法。
 
 ## 使用
 
