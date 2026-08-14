@@ -51,6 +51,13 @@ def get_catalog() -> dict[str, Any]:
                 "adjust_modes": ["none"],
                 "batch": True,
                 "batch_command": "bars-batch",
+                "intraday_history": {
+                    "supported": True,
+                    "scope": "single_trade_date_within_provider_retention",
+                    "date_arguments": ["start", "end"],
+                    "canonical_timeframe": "1m",
+                    "resampled_timeframes": ["5m", "15m", "30m", "60m"],
+                },
                 "note": "Daily/intraday security bars are relayed from TDX; sector boards via BK#### use Eastmoney.",
             },
             "trades": {

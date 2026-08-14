@@ -27,6 +27,8 @@ def test_catalog_cli(capsys):
     assert "deprecated_subcommands" not in data["capabilities"]["market"]
     assert data["capabilities"]["sectors"]["bars"].startswith("use bars")
     assert data["capabilities"]["auction"]["history"] is False
+    assert data["capabilities"]["bars"]["intraday_history"]["supported"] is True
+    assert data["capabilities"]["bars"]["intraday_history"]["scope"] == "single_trade_date_within_provider_retention"
     assert assert_keys(payload, ENVELOPE_REQUIRED, "envelope") == []
 
 

@@ -82,6 +82,15 @@ aasource market breadth --pretty
 
 K 线可以用 `--start`、`--end` 和 `--limit` 限制时间范围和返回量。查询旧日期时会按日期自动增加上游抓取深度，并在 `provenance.coverage` 返回实际覆盖范围；无法覆盖时不会伪装成正常空集。当前只支持不复权数据。
 
+历史分钟线按单个交易日查询，TDX 会向历史分页并统一生成 `1m/5m/15m/30m/60m`：
+
+```bash
+aasource bars SH600664 --tf 1m --start 2026-07-21 --end 2026-07-21 --limit 240
+aasource bars SH600664 --tf 15m --start 2026-07-21 --end 2026-07-21 --limit 16
+```
+
+历史分钟线受 TDX 节点保留范围限制；超出范围会返回 `UNAVAILABLE`，不会返回正常空数组。集合竞价仍仅支持当天 09:15–09:25 实时快照，不提供历史竞价序列。
+
 批量 K 线也可以从 stdin 读取标的：
 
 ```powershell

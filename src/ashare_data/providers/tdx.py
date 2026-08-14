@@ -18,6 +18,8 @@ from ashare_data.settings import load_yaml_resource
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 MIN_LIVE_UNIVERSE_SIZE = 4_000
+INTRADAY_PAGE_SIZE = 800
+INTRADAY_MAX_PAGES = 128
 
 
 @dataclass(frozen=True)
@@ -230,27 +232,48 @@ class TdxProvider:
             return payload
 
     def fetch_minute_1m(self, symbol: str, trading_date: str | None = None) -> list[dict[str, Any]]:
-        """Fetch today's (or recent) 1-minute bars from TDX. Volume unit: lots."""
+        """Fetch one trading day's 1-minute bars, paging backward for history."""
         symbol = canonicalize_symbol(symbol)
         market, code = split_code(symbol)
         is_index = symbol in INDEX_CODES or (symbol.startswith("SH") and code.startswith("000")) or symbol.startswith(
             "SZ399"
         )
         errors: list[str] = []
+        coverage_misses: list[str] = []
         for host in self.hosts:
             api = TdxHq_API(heartbeat=True, multithread=True, raise_exception=True)
             try:
                 with api.connect(host.host, host.port, time_out=self.timeout):
-                    # category 8 = 1-minute in pytdx
-                    page = (
-                        api.get_index_bars(TDXParams.KLINE_TYPE_1MIN, market, code, 0, 240)
-                        if is_index
-                        else api.get_security_bars(TDXParams.KLINE_TYPE_1MIN, market, code, 0, 240)
-                    )
-                if not page:
+                    def fetch_page(offset: int, count: int):
+                        return (
+                            api.get_index_bars(TDXParams.KLINE_TYPE_1MIN, market, code, offset, count)
+                            if is_index
+                            else api.get_security_bars(TDXParams.KLINE_TYPE_1MIN, market, code, offset, count)
+                        ) or []
+
+                    if not trading_date:
+                        raw_rows = fetch_page(0, 240)
+                    else:
+                        raw_rows = []
+                        for page_index in range(INTRADAY_MAX_PAGES):
+                            page = fetch_page(page_index * INTRADAY_PAGE_SIZE, INTRADAY_PAGE_SIZE)
+                            if not page:
+                                break
+                            page_dates = [bar_date(dict(item)).isoformat() for item in page]
+                            raw_rows.extend(
+                                dict(item)
+                                for item, item_date in zip(page, page_dates, strict=True)
+                                if item_date == trading_date
+                            )
+                            if min(page_dates) < trading_date or max(page_dates) < trading_date:
+                                break
+                if not raw_rows:
+                    if trading_date:
+                        coverage_misses.append(host.label)
+                        continue
                     raise RuntimeError("empty 1m bars")
                 rows: list[dict[str, Any]] = []
-                for item in page:
+                for item in raw_rows:
                     row = dict(item)
                     year = int(row.get("year") or 0)
                     month = int(row.get("month") or 0)
@@ -284,9 +307,21 @@ class TdxProvider:
                         }
                     )
                 rows.sort(key=lambda r: r["ts"])
-                return rows
+                unique = {row["ts"]: row for row in rows}
+                return [unique[ts] for ts in sorted(unique)]
             except Exception as exc:  # noqa: BLE001
                 errors.append(f"{host.label}:{exc}")
+        if coverage_misses:
+            raise AshareDataError(
+                ErrorCode.UNAVAILABLE,
+                f"TDX 1m history does not cover {trading_date} for {symbol}",
+                retryable=False,
+                details={
+                    "symbol": symbol,
+                    "trade_date": trading_date,
+                    "max_pages": INTRADAY_MAX_PAGES,
+                },
+            )
         raise AshareDataError(
             ErrorCode.PROVIDER_FAILURE,
             "TDX 1m fetch failed: " + " | ".join(errors[:3]),

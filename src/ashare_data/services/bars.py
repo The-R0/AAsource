@@ -369,16 +369,37 @@ def get_bars(
             details={"timeframe": timeframe, "supported": ["1d", "1m", "5m", "15m", "30m", "60m"]},
         )
 
+    if start and end and start[:10] != end[:10]:
+        raise AshareDataError(
+            ErrorCode.CAPABILITY_NOT_AVAILABLE,
+            "intraday bars currently support one trading date per request",
+            details={"start": start, "end": end, "supported": "single trading date"},
+        )
+    requested_trade_date = (end or start)[:10] if (end or start) else None
+    if requested_trade_date:
+        try:
+            datetime.fromisoformat(requested_trade_date)
+        except ValueError as exc:
+            raise AshareDataError(
+                ErrorCode.INVALID_REQUEST,
+                f"invalid intraday trade date: {requested_trade_date}",
+            ) from exc
+
     provider = get_tdx_provider()
     try:
-        rows = provider.fetch_minute_1m(symbol, trading_date=end)
+        rows = provider.fetch_minute_1m(symbol, trading_date=requested_trade_date)
     except AshareDataError:
         raise
     except Exception as exc:  # noqa: BLE001
         raise AshareDataError(ErrorCode.PROVIDER_FAILURE, str(exc), retryable=True) from exc
 
     # No-trade minutes are absent from provider rows — do not fabricate.
-    minute_bars = bars_from_minute_rows(rows, symbol=symbol, timeframe=Timeframe.M1, status=BarStatus.PROVISIONAL)
+    historical = bool(
+        requested_trade_date
+        and datetime.fromisoformat(requested_trade_date).date() < datetime.now(SHANGHAI).date()
+    )
+    bar_status = BarStatus.FINAL if historical else BarStatus.PROVISIONAL
+    minute_bars = bars_from_minute_rows(rows, symbol=symbol, timeframe=Timeframe.M1, status=bar_status)
     if tf != Timeframe.M1:
         minute_bars = resample_bars(minute_bars, tf)
     if start:
@@ -397,6 +418,13 @@ def get_bars(
         "retrieved_at": retrieved_at,
         "resampled_to": str(tf),
         "bar_policy": "no_trade_no_bar",
+        "requested_trade_date": requested_trade_date,
+        "coverage": {
+            "trade_date": requested_trade_date,
+            "start": minute_bars[0].ts if minute_bars else None,
+            "end": minute_bars[-1].ts if minute_bars else None,
+            "complete": bool(minute_bars),
+        },
     }
     out = []
     for bar in minute_bars:
