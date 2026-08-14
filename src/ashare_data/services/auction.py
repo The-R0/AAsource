@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 
 from ashare_data.domain.batch import resolve_inputs, unique_symbols
 from ashare_data.domain.errors import AshareDataError, ErrorCode
+from ashare_data.domain.identifiers import canonicalize_symbol
 from ashare_data.domain.models import SourceRef, WarningItem
 from ashare_data.domain.temporal import quote_freshness
 from ashare_data.providers.tencent import get_tencent_provider
@@ -93,12 +94,15 @@ def get_auction_snapshots(
     retrieved_at = datetime.now(SHANGHAI).isoformat(timespec="milliseconds")
     inputs = resolve_inputs(symbols)
     valid_symbols = unique_symbols(inputs)
-    rows_by_code: dict[str, dict[str, Any]] = {}
+    rows_by_symbol: dict[str, dict[str, Any]] = {}
     fetch_error: AshareDataError | None = None
     if valid_symbols:
         try:
             raw = get_tencent_provider().fetch_quotes_raw(valid_symbols)
-            rows_by_code = {str(row.get("code")): row for row in (raw.get("data") or {}).get("quotes") or []}
+            for row in (raw.get("data") or {}).get("quotes") or []:
+                raw_symbol = row.get("symbol") or row.get("tencent_symbol")
+                if raw_symbol:
+                    rows_by_symbol[canonicalize_symbol(str(raw_symbol))] = row
         except Exception as exc:  # noqa: BLE001
             fetch_error = AshareDataError(ErrorCode.PROVIDER_FAILURE, str(exc), retryable=True)
 
@@ -115,7 +119,7 @@ def get_auction_snapshots(
         elif fetch_error is not None:
             error = fetch_error.to_dict()
         else:
-            row = rows_by_code.get(str(symbol)[2:])
+            row = rows_by_symbol.get(str(symbol))
             if row is None:
                 error = AshareDataError(ErrorCode.UNAVAILABLE, f"No Tencent quote for {symbol}", retryable=True).to_dict()
             else:

@@ -189,12 +189,15 @@ class TdxProvider:
                             for item in page:
                                 code = str(item.get("code") or "")
                                 if re.fullmatch(r"\d{6}", code) and self._is_a_share_code(market, code):
-                                    symbols[code] = {
+                                    exchange = "SH" if market == 1 else (
+                                        "BJ" if code.startswith(("4", "8", "9")) else "SZ"
+                                    )
+                                    symbol = f"{exchange}{code}"
+                                    symbols[symbol] = {
+                                        "symbol": symbol,
                                         "code": code,
                                         "name": str(item.get("name") or ""),
-                                        "exchange": "SH" if market == 1 else (
-                                            "BJ" if code.startswith(("4", "8", "9")) else "SZ"
-                                        ),
+                                        "exchange": exchange,
                                     }
                 if len(symbols) < MIN_LIVE_UNIVERSE_SIZE:
                     raise RuntimeError(f"TDX security master coverage too small: {len(symbols)}")
@@ -206,7 +209,7 @@ class TdxProvider:
                     "generated_at": datetime.now(SHANGHAI).isoformat(timespec="seconds"),
                     "count": len(symbols),
                     "warnings": page_errors,
-                    "symbols": [symbols[code] for code in sorted(symbols)],
+                    "symbols": [symbols[symbol] for symbol in sorted(symbols)],
                 }
             except Exception as exc:
                 errors.append(f"{host.label}:{type(exc).__name__}:{exc}")

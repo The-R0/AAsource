@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 
 from ashare_data.domain.batch import map_results, resolve_inputs
 from ashare_data.domain.errors import AshareDataError, ErrorCode
+from ashare_data.domain.identifiers import canonicalize_symbol
 from ashare_data.domain.models import SourceRef, WarningItem
 from ashare_data.domain.temporal import quote_freshness
 from ashare_data.normalize.quotes import quote_from_tencent_row
@@ -35,13 +36,22 @@ def get_quotes(
             )
         data = raw.get("data") or {}
         rows = data.get("quotes") or []
-        by_code = {str(r.get("code")): r for r in rows}
+        by_symbol: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            raw_symbol = row.get("symbol") or row.get("tencent_symbol")
+            if raw_symbol:
+                by_symbol[canonicalize_symbol(str(raw_symbol))] = row
         out: dict[str, Any] = {}
         for symbol in ok_symbols:
-            row = by_code.get(symbol[2:])
+            row = by_symbol.get(symbol)
             if not row:
                 continue
             quote = quote_from_tencent_row(row, as_of=retrieved_at).to_dict()
+            if quote.get("symbol") != symbol:
+                raise AshareDataError(
+                    ErrorCode.CONTRACT_ERROR,
+                    f"Tencent symbol mismatch: requested {symbol}, received {quote.get('symbol')}",
+                )
             quote["retrieved_at"] = retrieved_at
             quote["source_time"] = quote.get("raw", {}).get("source_time") or data.get("source_time")
             quote.pop("raw", None)

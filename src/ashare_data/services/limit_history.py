@@ -32,6 +32,8 @@ def _matches_price(value: Any, target: float) -> bool:
 def classify_limit_history(symbol: str, bars: list[dict[str, Any]]) -> dict[str, Any]:
     """Classify price-limit touches from canonical daily facts without inventing historical ST identity."""
     symbol = canonicalize_symbol(symbol)
+    provisional_bars = [bar for bar in bars if str(bar.get("status") or "final") != "final"]
+    bars = [bar for bar in bars if str(bar.get("status") or "final") == "final"]
     events: list[dict[str, Any]] = []
     streak = 0
     streak_is_lower_bound = False
@@ -80,6 +82,16 @@ def classify_limit_history(symbol: str, bars: list[dict[str, Any]]) -> dict[str,
         if str(bar.get("trade_date") or bar.get("ts") or "")[:10]
     )
     unavailable = ["historical_st_status", "five_pct_limit_events"] if st_history_needed else []
+    provisional_current_event = None
+    if provisional_bars:
+        current = dict(provisional_bars[-1])
+        current["status"] = "final"
+        current_result = classify_limit_history(symbol, [current])
+        if current_result["events"]:
+            provisional_current_event = dict(current_result["events"][0])
+            provisional_current_event.pop("streak", None)
+            provisional_current_event.pop("streak_is_lower_bound", None)
+            provisional_current_event["status"] = "provisional"
     return {
         "symbol": symbol,
         "observation_start": str(bars[0].get("trade_date") or bars[0].get("ts") or "")[:10] if bars else None,
@@ -90,6 +102,8 @@ def classify_limit_history(symbol: str, bars: list[dict[str, Any]]) -> dict[str,
         "broken_count": len(broken),
         "max_streak": max((int(event["streak"]) for event in sealed), default=0),
         "events": events,
+        "provisional_current_event": provisional_current_event,
+        "provisional_bar_count": len(provisional_bars),
         "unavailable_dimensions": unavailable,
         "method": {
             "id": "canonical_daily_price_limit_match",

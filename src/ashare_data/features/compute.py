@@ -78,20 +78,34 @@ def _load_sets() -> dict[str, Any]:
     return load_yaml_resource("feature_sets.yaml")
 
 
-def _daily_frame(symbol: str, limit: int = 300) -> pd.DataFrame:
+def _feature_frame(rows: list[dict[str, Any]], *, include_provisional: bool) -> tuple[pd.DataFrame, bool]:
+    frame = pd.DataFrame(rows)
+    if frame.empty:
+        return frame, False
+    statuses = frame["status"] if "status" in frame.columns else pd.Series("final", index=frame.index)
+    provisional = statuses.fillna("final") != "final"
+    if not include_provisional:
+        frame = frame.loc[~provisional].reset_index(drop=True)
+        return frame, False
+    return frame.reset_index(drop=True), bool(provisional.any())
+
+
+def _daily_frame(
+    symbol: str, limit: int = 300, *, include_provisional: bool = False
+) -> tuple[pd.DataFrame, bool]:
     rows, _sources, _warnings, _degraded, _provenance = get_bars(
         symbol, timeframe="1d", limit=limit, adjust="none"
     )
-    return pd.DataFrame(rows)
+    return _feature_frame(rows, include_provisional=include_provisional)
 
 
-def _minute_frame(symbol: str) -> pd.DataFrame:
+def _minute_frame(symbol: str, *, include_provisional: bool = False) -> tuple[pd.DataFrame, bool]:
     rows, _sources, _warnings, _degraded, _provenance = get_bars(
         symbol, timeframe="1m", limit=240, adjust="none"
     )
     if not rows:
-        return pd.DataFrame(columns=["open", "high", "low", "close", "volume", "amount"])
-    return pd.DataFrame(rows)
+        return pd.DataFrame(columns=["open", "high", "low", "close", "volume", "amount"]), False
+    return _feature_frame(rows, include_provisional=include_provisional)
 
 
 def _expand_set_names(raw: str | list[str], sets: dict[str, Any]) -> list[str]:
@@ -225,10 +239,6 @@ def compute_feature_sets(
     symbol = canonicalize_symbol(symbol)
     sets = _load_sets()
     expanded = _expand_set_names(set_names, sets)
-    uses_provisional = False
-    if include_provisional:
-        uses_provisional = False  # v1 honesty
-
     daily = None
     minute = None
     set_payloads = []
@@ -244,18 +254,18 @@ def compute_feature_sets(
                 )
             if minute is None:
                 try:
-                    minute = _minute_frame(symbol)
+                    minute = _minute_frame(symbol, include_provisional=include_provisional)
                 except Exception as exc:  # noqa: BLE001
                     raise AshareDataError(ErrorCode.PROVIDER_FAILURE, str(exc), retryable=True) from exc
-            frame = minute
+            frame, uses_provisional = minute
             tf_used = "1m"
         else:
             if timeframe != "1d" and required_tf == "1d":
                 # still allow explicit 1d compute
                 pass
             if daily is None:
-                daily = _daily_frame(symbol)
-            frame = daily
+                daily = _daily_frame(symbol, include_provisional=include_provisional)
+            frame, uses_provisional = daily
             tf_used = "1d"
         features = []
         for item in spec.get("features") or []:

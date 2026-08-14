@@ -97,7 +97,8 @@ def build_parser() -> argparse.ArgumentParser:
     lh.add_argument("--limit", type=int, default=1200)
 
     bb = add("bars-batch", help="batch OHLCV bars (item-level status)")
-    bb.add_argument("--symbols", required=True, help="comma-separated symbols")
+    bb.add_argument("--symbols", help="comma-separated symbols")
+    bb.add_argument("--stdin", action="store_true", help='read {"symbols": [...]} from stdin')
     bb.add_argument("--tf", default="1m", dest="timeframe")
     bb.add_argument("--limit", type=int, default=240)
     bb.add_argument("--start")
@@ -199,9 +200,11 @@ def dispatch(args) -> tuple[dict, int]:
             adjust=args.adjust,
         )
     if cmd == "bars-batch":
-        symbols = [p.strip() for p in str(args.symbols).split(",") if p.strip()]
+        symbols = [p.strip() for p in str(args.symbols or "").split(",") if p.strip()]
+        if args.stdin:
+            symbols.extend(read_stdin_json().get("symbols") or [])
         if not symbols:
-            raise AshareDataError(ErrorCode.INVALID_REQUEST, "bars-batch requires --symbols")
+            raise AshareDataError(ErrorCode.INVALID_REQUEST, "bars-batch requires --symbols or --stdin")
         return bars_batch_cmd.run_bars_batch(
             symbols,
             timeframe=args.timeframe,

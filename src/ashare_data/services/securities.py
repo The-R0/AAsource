@@ -14,34 +14,32 @@ def get_securities(
     symbols: list[str],
 ) -> tuple[list[dict[str, Any]], list[SourceRef], list[WarningItem], bool]:
     items = resolve_inputs(symbols)
-    by_code: dict[str, dict[str, Any]] = {}
+    by_symbol: dict[str, dict[str, Any]] = {}
     master_error: str | None = None
     try:
         master = get_tdx_provider().fetch_security_master()
         for row in master.get("symbols") or []:
             code = str(row.get("code") or "")
-            if len(code) == 6:
-                by_code[code] = row
-            else:
-                try:
-                    by_code[canonicalize_symbol(code)[2:]] = row
-                except Exception:
-                    continue
+            exchange = str(row.get("exchange") or "").upper()
+            raw_symbol = row.get("symbol") or (f"{exchange}{code}" if exchange and len(code) == 6 else code)
+            try:
+                by_symbol[canonicalize_symbol(str(raw_symbol))] = row
+            except Exception:
+                continue
     except Exception as exc:  # noqa: BLE001
         master_error = str(exc)
 
     def fetch(ok_symbols: list[str]) -> dict[str, Any]:
         out: dict[str, Any] = {}
         for symbol in ok_symbols:
-            row = by_code.get(symbol[2:])
+            row = by_symbol.get(symbol)
             if row:
-                sec = security_from_master_row({**row, "code": symbol[2:], "exchange": symbol[:2]})
+                sec = security_from_master_row({**row, "symbol": symbol, "code": symbol[2:], "exchange": symbol[:2]})
             else:
                 continue
             payload = sec.to_dict()
-            payload["symbol"] = symbol
-            payload["code"] = symbol[2:]
-            payload["exchange"] = symbol[:2]
+            if payload.get("symbol") != symbol:
+                continue
             payload["temporal_scope"] = "current"
             payload["trading_rules"] = {
                 "price_limit_type": "standard",

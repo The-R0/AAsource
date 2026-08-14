@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, time
+from math import ceil
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -19,6 +20,34 @@ from ashare_data.providers.tdx import get_tdx_provider
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 INTRADAY = {Timeframe.M1, Timeframe.M5, Timeframe.M15, Timeframe.M30, Timeframe.M60}
+DAILY_FINAL_CONFIRMATION = time(15, 10)
+
+
+def _daily_fetch_depth(start: str | None, end: str | None, limit: int | None) -> int:
+    """Estimate recent-history depth needed to reach a requested calendar range."""
+    requested = limit if limit is not None and limit > 0 else 120
+    want = requested + 5
+    today = datetime.now(SHANGHAI).date()
+    try:
+        if start:
+            calendar_days = max(0, (today - datetime.fromisoformat(start).date()).days)
+            want = max(want, ceil(calendar_days * 5 / 7) + 80)
+        elif end:
+            age_days = max(0, (today - datetime.fromisoformat(end).date()).days)
+            want = max(want, ceil(age_days * 5 / 7) + requested + 40)
+    except ValueError:
+        pass
+    return min(want, 4000)
+
+
+def _daily_bar_is_final(trade_date: str, *, observed_at: datetime) -> bool:
+    bar_date = datetime.fromisoformat(trade_date).date()
+    observed_date = observed_at.date()
+    if bar_date < observed_date:
+        return True
+    if bar_date > observed_date:
+        return False
+    return observed_at.timetz().replace(tzinfo=None) >= DAILY_FINAL_CONFIRMATION
 
 
 def _tdx_daily_bars(
@@ -30,27 +59,35 @@ def _tdx_daily_bars(
     retrieved_at: str,
 ) -> tuple[list[dict[str, Any]], list[SourceRef], list[WarningItem], bool, dict[str, Any]]:
     """Fetch canonical daily bars directly from the authoritative TDX adapter."""
-    want = 2000
-    if limit is not None and limit > 0:
-        want = max(limit + 5, limit)
-    if start and end:
-        # rough calendar span → trading-day overshoot
-        try:
-            days = (datetime.fromisoformat(end) - datetime.fromisoformat(start)).days
-            want = max(want, min(days + 40, 4000))
-        except ValueError:
-            pass
+    want = _daily_fetch_depth(start, end, limit)
     try:
-        rows, actions, host, _exhausted = get_tdx_provider().fetch_daily_raw(symbol, want)
-        frame = normalize_daily(symbol, rows, actions)
+        rows, actions, host, exhausted = get_tdx_provider().fetch_daily_raw(symbol, want)
+        raw_frame = normalize_daily(symbol, rows, actions)
     except Exception as exc:  # noqa: BLE001
         raise AshareDataError(
             ErrorCode.PROVIDER_FAILURE,
             f"live daily bars failed for {symbol}: {exc}",
             retryable=True,
         ) from exc
-    if frame.empty:
+    if raw_frame.empty:
         raise AshareDataError(ErrorCode.UNAVAILABLE, f"No live daily bars for {symbol}")
+    coverage_start = pd.Timestamp(raw_frame["trade_date"].min()).date().isoformat()
+    coverage_end = pd.Timestamp(raw_frame["trade_date"].max()).date().isoformat()
+    coverage_complete = bool(exhausted or not start or coverage_start <= start)
+    if start and end and coverage_start > end and not exhausted:
+        raise AshareDataError(
+            ErrorCode.UNAVAILABLE,
+            f"TDX history depth did not reach requested range for {symbol}",
+            retryable=True,
+            details={
+                "requested_start": start,
+                "requested_end": end,
+                "coverage_start": coverage_start,
+                "coverage_end": coverage_end,
+                "complete": False,
+            },
+        )
+    frame = raw_frame
     if start:
         frame = frame[frame["trade_date"] >= pd.Timestamp(start)]
     if end:
@@ -59,17 +96,47 @@ def _tdx_daily_bars(
         frame = frame.tail(limit)
     bars = bars_from_daily_frame(frame, symbol=symbol, status=BarStatus.FINAL, adjust=AdjustMode.NONE)
     out = []
+    observed_at = datetime.now(SHANGHAI)
+    has_provisional = False
     for bar in bars:
         payload = annotate_bar_quality(bar.to_dict())
         payload["trade_date"] = payload["ts"][:10]
+        if not _daily_bar_is_final(payload["trade_date"], observed_at=observed_at):
+            payload["status"] = "provisional"
+            payload["quality"] = "partial"
+            has_provisional = True
         out.append(payload)
     provenance = {
         "provider": "tdx",
         "dataset": "daily_bars",
         "host": host,
         "retrieved_at": retrieved_at,
+        "coverage": {
+            "start": coverage_start,
+            "end": coverage_end,
+            "complete": coverage_complete,
+            "upstream_exhausted": exhausted,
+        },
     }
-    return out, [SourceRef(provider="tdx", role="canonical_daily")], [], False, provenance
+    warnings: list[WarningItem] = []
+    if not coverage_complete:
+        warnings.append(
+            WarningItem(
+                code="BARS_COVERAGE_INCOMPLETE",
+                message=f"upstream coverage starts at {coverage_start}, after requested start {start}",
+                symbols=[symbol],
+            )
+        )
+    if has_provisional:
+        warnings.append(
+            WarningItem(
+                code="DAILY_BAR_PROVISIONAL",
+                message=f"current daily bar is not final until {DAILY_FINAL_CONFIRMATION.isoformat(timespec='minutes')}",
+                symbols=[symbol],
+            )
+        )
+    degraded = has_provisional or not coverage_complete
+    return out, [SourceRef(provider="tdx", role="canonical_daily")], warnings, degraded, provenance
 
 
 def get_bars_batch(
@@ -189,7 +256,12 @@ def get_bars(
                     retryable=True,
                 ) from exc
             out = []
+            observed_at = datetime.now(SHANGHAI)
+            has_provisional = False
             for row in payload.get("rows") or []:
+                trade_date = str(row.get("trade_date") or row.get("ts") or "")[:10]
+                is_final = bool(trade_date and _daily_bar_is_final(trade_date, observed_at=observed_at))
+                has_provisional = has_provisional or not is_final
                 bar = {
                     "symbol": sector_id,
                     "timeframe": "1d",
@@ -202,10 +274,10 @@ def get_bars(
                     "volume": row.get("volume"),
                     "amount": row.get("amount"),
                     "previous_close": row.get("previous_close"),
-                    "status": "final",
+                    "status": "final" if is_final else "provisional",
                     "source": "eastmoney",
                     "adjust": "none",
-                    "quality": "complete",
+                    "quality": "complete" if is_final else "partial",
                 }
                 out.append(annotate_bar_quality(bar))
             if not out:
@@ -217,7 +289,15 @@ def get_bars(
                 "sector_name": payload.get("name"),
                 "retrieved_at": retrieved_at,
             }
-            return out, [SourceRef(provider="eastmoney", role="sector_daily")], warnings, degraded, provenance
+            if has_provisional:
+                warnings.append(
+                    WarningItem(
+                        code="DAILY_BAR_PROVISIONAL",
+                        message=f"current daily bar is not final until {DAILY_FINAL_CONFIRMATION.isoformat(timespec='minutes')}",
+                        symbols=[sector_id],
+                    )
+                )
+            return out, [SourceRef(provider="eastmoney", role="sector_daily")], warnings, degraded or has_provisional, provenance
         if tf != Timeframe.M1:
             raise AshareDataError(
                 ErrorCode.CAPABILITY_NOT_AVAILABLE,

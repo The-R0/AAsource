@@ -46,16 +46,15 @@ def _price_limit_pct(symbol: str, is_st: bool | None) -> float | None:
 
 def security_from_master_row(row: dict[str, Any]) -> Security:
     raw_code = str(row.get("code") or row.get("symbol") or "")
-    # master rows may already be SH/SZ or bare
-    try:
-        symbol = canonicalize_symbol(raw_code if len(raw_code) >= 6 else str(row.get("code")))
-    except Exception:
-        market = str(row.get("market") or row.get("exchange") or "").upper()
-        code = str(row.get("code") or "")[-6:]
-        if market in {"SH", "SZ", "BJ"}:
-            symbol = f"{market}{code}"
-        else:
-            symbol = canonicalize_symbol(code)
+    explicit_symbol = row.get("symbol")
+    market = str(row.get("market") or row.get("exchange") or "").upper()
+    code = str(row.get("code") or "")[-6:]
+    if explicit_symbol:
+        symbol = canonicalize_symbol(str(explicit_symbol))
+    elif market in {"SH", "SZ", "BJ"} and len(code) == 6:
+        symbol = f"{market}{code}"
+    else:
+        symbol = canonicalize_symbol(raw_code)
     name = row.get("name")
     is_st = None
     if isinstance(name, str):

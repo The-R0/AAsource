@@ -50,7 +50,10 @@ def parse_tencent_quotes(text: str) -> list[dict[str, Any]]:
     for record in text.split(";"):
         if '="' not in record:
             continue
-        payload = record.split('="', 1)[1].rstrip('"\r\n')
+        header, payload = record.split('="', 1)
+        vendor_match = re.search(r"v_((?:sh|sz|bj)\d{6})\s*$", header, re.IGNORECASE)
+        vendor_symbol = vendor_match.group(1) if vendor_match else None
+        payload = payload.rstrip('"\r\n')
         cells = payload.split("~")
         if len(cells) < 39 or not re.fullmatch(r"\d{6}", cells[2] or ""):
             continue
@@ -67,6 +70,7 @@ def parse_tencent_quotes(text: str) -> list[dict[str, Any]]:
         quotes.append(
             {
                 "code": cells[2],
+                "symbol": canonicalize_symbol(vendor_symbol) if vendor_symbol else None,
                 "name": cells[1],
                 "price": _number(cells[3]),
                 "previous_close": _number(cells[4]),
@@ -145,8 +149,8 @@ class TencentProvider:
     def fetch_quotes_raw(self, symbols: list[str]) -> dict[str, Any]:
         rows = self.fetch_quote_rows(symbols)
         requested = [canonicalize_symbol(symbol) for symbol in symbols]
-        found = {str(row.get("code")) for row in rows}
-        missing = [symbol for symbol in requested if symbol[2:] not in found]
+        found = {str(row.get("symbol")) for row in rows if row.get("symbol")}
+        missing = [symbol for symbol in requested if symbol not in found]
         return {
             "status": "DEGRADED" if missing else "OK",
             "updated_at": _now_iso(),
@@ -161,10 +165,10 @@ class TencentProvider:
 
     def fetch_indices_raw(self) -> dict[str, Any]:
         rows = self.fetch_quote_rows(list(INDEX_SYMBOLS.values()))
-        by_code = {str(row.get("code")): row for row in rows}
+        by_symbol = {str(row.get("symbol")): row for row in rows if row.get("symbol")}
         ordered: list[dict[str, Any]] = []
         for name, symbol in INDEX_SYMBOLS.items():
-            row = by_code.get(symbol[2:])
+            row = by_symbol.get(symbol)
             if row:
                 ordered.append({**row, "name": name, "symbol": symbol})
         return {

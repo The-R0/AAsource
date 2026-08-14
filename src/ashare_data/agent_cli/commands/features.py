@@ -15,13 +15,6 @@ def run_features(
 ):
     warnings: list[WarningItem] = []
     names = [p.strip() for p in set_name.split(",") if p.strip()]
-    if include_provisional:
-        warnings.append(
-            WarningItem(
-                code="PROVISIONAL_NOT_MERGED",
-                message="include_provisional accepted but v1 still uses final daily / live minute bars without hybrid merge",
-            )
-        )
     if len(symbols) == 1:
         symbol = canonicalize_symbol(symbols[0])
         if len(names) == 1:
@@ -43,6 +36,13 @@ def run_features(
             "ok_count": sum(1 for i in items if i.get("status") == "ok"),
             "error_count": sum(1 for i in items if i.get("status") != "ok"),
         }
+    if include_provisional:
+        warnings.append(
+            WarningItem(
+                code="PROVISIONAL_INPUT_ALLOWED",
+                message="feature inputs may include unfinished bars; inspect uses_provisional on each result",
+            )
+        )
     return ok(
         "features",
         data,

@@ -75,12 +75,18 @@ aasource market breadth --pretty
 | 实时行情 | `aasource quotes SH600519 SZ000001` | 最新价、开高低、昨收、涨跌幅、成交量、成交额、换手率 | 腾讯 |
 | 开盘集合竞价 | `aasource auction SH600519` | 09:15–09:25 当前竞价快照和盘口 | 腾讯；不提供历史序列 |
 | 单只 K 线 | `aasource bars SH600036 --tf 1d --limit 120` | OHLCV、成交额；支持 `1m/5m/15m/30m/60m/1d` | 股票和指数：通达信；板块：东方财富 |
-| 批量 K 线 | `aasource bars-batch --symbols SH600036,SH600050 --tf 1d` | 多只证券 K 线，逐项返回成功或错误 | 通达信 |
+| 批量 K 线 | `aasource bars-batch --symbols SH600036,SH600050 --tf 1d` | 多只证券 K 线，支持 `--symbols` 或 stdin，逐项返回成功或错误 | 通达信 |
 | 板块 K 线 | `aasource bars BK0475 --tf 1d --limit 120` | 板块日线或分钟线 | 东方财富 |
 | 分笔成交 | `aasource trades SH600036 --trade-date 2026-08-07` | 指定交易日的逐笔成交 | 通达信 |
 | 涨停历史 | `aasource limit-history SH600519 --limit 120` | 封板、炸板和连续涨停状态，由日线规则计算 | 通达信日线 |
 
-K 线可以用 `--start`、`--end` 和 `--limit` 限制时间范围和返回量。当前只支持不复权数据。
+K 线可以用 `--start`、`--end` 和 `--limit` 限制时间范围和返回量。查询旧日期时会按日期自动增加上游抓取深度，并在 `provenance.coverage` 返回实际覆盖范围；无法覆盖时不会伪装成正常空集。当前只支持不复权数据。
+
+批量 K 线也可以从 stdin 读取标的：
+
+```powershell
+'{"symbols":["SH600036","SH600050"]}' | aasource bars-batch --stdin --tf 1d
+```
 
 ### 市场数据
 
@@ -129,7 +135,7 @@ K 线可以用 `--start`、`--end` 和 `--limit` 限制时间范围和返回量�
 | `technical_extended` | `aasource features SH600036 --set technical_extended` | EMA、MACD、RSI、布林带和 OBV |
 | `agent_core` | `aasource features SH600036 --set agent_core` | 趋势、量价、波动和相对强弱的组合集合 |
 
-多个集合可以逗号分隔，多个股票使用 `--symbols SH600036,SH600050`。
+多个集合可以逗号分隔，多个股票使用 `--symbols SH600036,SH600050`。日线特征默认排除尚未收盘确认的当日 K 线；确实需要盘中值时增加 `--include-provisional`，并检查返回的 `uses_provisional`。
 
 ### 工具命令
 
@@ -151,7 +157,7 @@ K 线可以用 `--start`、`--end` 和 `--limit` 限制时间范围和返回量�
 | 成交额 | `float`，单位为元 |
 | 比率 | 涨跌幅、换手率和特征收益均为百分点；`0.92` 表示 `0.92%` |
 | 缺失值 | 使用 JSON `null`，不伪造为 `0` |
-| K 线状态 | 日线通常为 `final`，盘中分钟线为 `provisional` |
+| K 线状态 | 当日 K 线在 15:10 收盘确认前为 `provisional/partial`，此前交易日为 `final`；盘中分钟线为 `provisional` |
 | 数据来源 | 每个响应通过 `sources` 标明 provider 和用途，行情记录也保留 `source` |
 | 批量结果 | 每个标的单独返回 `status` 和 `error`，一个标的失败不会隐藏其他结果 |
 
@@ -186,7 +192,7 @@ aasource catalog --pretty
 }
 ```
 
-批量命令会保留单个标的的状态；上游不可用时明确返回错误，不会静默换源。K 线支持 `--start`、`--end` 和 `--limit`，便于限制返回量。
+批量命令会保留单个标的的状态；上游不可用时明确返回错误，不会静默换源。K 线支持 `--start`、`--end` 和 `--limit`，便于限制返回量。`limit-history` 的历史统计只使用 `final` 日线，盘中触板状态如存在会单列在 `provisional_current_event`。
 
 ## 数据说明
 
