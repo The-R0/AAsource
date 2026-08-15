@@ -51,7 +51,7 @@ volatility_core:
     - {id: atr_percentile, params: {window: 60}}
 
 intraday_core:
-  version: 1
+  version: 2
   availability: available
   requires_timeframe: 1m
   features:
@@ -61,6 +61,10 @@ intraday_core:
     - {id: distance_to_intraday_high, params: {}}
     - {id: distance_to_intraday_low, params: {}}
     - {id: intradaily_volume_ratio, params: {window: 5}}
+    - {id: intraday_high_time, params: {}}
+    - {id: intraday_low_time, params: {}}
+    - {id: max_drawdown_from_high, params: {}}
+    - {id: last_30m_return, params: {}}
 
 relative_core:
   version: 1

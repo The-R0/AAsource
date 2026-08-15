@@ -57,6 +57,8 @@ def _normalize_row(row: dict[str, Any]) -> dict[str, Any]:
         "first_limit_time": row.get("fbt"),
         "last_limit_time": row.get("lbt"),
         "break_count": int(_number(row.get("zbc")) or 0),
+        "seal_order_amount": _number(row.get("fund")),
+        "turnover_rate": _number(row.get("hs")),
         "amount": _number(row.get("amount") or row.get("cje")),
         "change_pct": _number(row.get("zdp") or row.get("change_pct")),
         "raw": {
@@ -67,6 +69,9 @@ def _normalize_row(row: dict[str, Any]) -> dict[str, Any]:
             "fbt": row.get("fbt"),
             "lbt": row.get("lbt"),
             "zbc": row.get("zbc"),
+            "fund": row.get("fund"),
+            "hs": row.get("hs"),
+            "zttj": row.get("zttj"),
         },
     }
 

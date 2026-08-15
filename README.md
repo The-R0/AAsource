@@ -103,10 +103,10 @@ aasource bars SH600664 --tf 15m --start 2026-07-21 --end 2026-07-21 --limit 16
 | --- | --- | --- | --- |
 | 市场概览 | `aasource market snapshot` | 上涨、下跌、平盘数量，成交额和证券覆盖情况 | 通达信 + 腾讯 |
 | 全市场截面 | `aasource market cross-section` | 全 A 股实时行情列表 | 通达信 + 腾讯 |
-| 选股维度 | `aasource market stock-signals` | 涨跌、成交额、换手、量比、行业偏离、持续性及涨停活动等横截面排名 | 通达信 + 腾讯 + 东方财富 |
+| 选股维度 | `aasource market stock-signals` | 涨跌、成交额、换手、量比、当前行业内收益分位与成交额排名、行业偏离、昨日涨停反馈及晋级数量 | 通达信 + 腾讯 + 东方财富 |
 | 涨跌排行 | `aasource market movers --sort-by change_pct --limit 20` | 按涨跌幅、成交额或换手率排序 | 腾讯 |
 | 市场宽度 | `aasource market breadth` | 上涨、下跌、平盘数量及成交额 | 通达信 + 腾讯 |
-| 涨跌停池 | `aasource market limits --trade-date 2026-08-07` | 涨停、跌停、炸板、昨日涨停及连板统计 | 东方财富 |
+| 涨跌停池 | `aasource market limits --trade-date 2026-08-07` | 首次/最后封板时间、炸板次数、连板数、封单金额、换手率，以及涨停、跌停、炸板和昨日涨停池 | 东方财富 |
 
 ### 板块数据
 
@@ -139,12 +139,14 @@ aasource bars SH600664 --tf 15m --start 2026-07-21 --end 2026-07-21 --limit 16
 | `trend_core` | `aasource features SH600036 --set trend_core` | 均线、区间收益、滚动高低点、突破和距离 |
 | `volume_core` | `aasource features SH600036 --set volume_core` | 均量、均额、量比、额比、换手率和分位数 |
 | `volatility_core` | `aasource features SH600036 --set volatility_core` | ATR、波动率、振幅和波动分位数 |
-| `intraday_core` | `aasource features SH600036 --set intraday_core --tf 1m` | VWAP、日内收益、日内高低点距离和分钟量比 |
+| `intraday_core` | `aasource features SH600036 --set intraday_core --tf 1m` | VWAP、首次日内高低点时间、最大回撤、尾盘 30 分钟收益、日内收益和分钟量比 |
 | `relative_core` | `aasource features SH600036 --set relative_core` | 相对沪深 300 收益；部分板块相对指标暂不可用 |
 | `technical_extended` | `aasource features SH600036 --set technical_extended` | EMA、MACD、RSI、布林带和 OBV |
 | `agent_core` | `aasource features SH600036 --set agent_core` | 趋势、量价、波动和相对强弱的组合集合 |
 
 多个集合可以逗号分隔，多个股票使用 `--symbols SH600036,SH600050`。日线特征默认排除尚未收盘确认的当日 K 线；确实需要盘中值时增加 `--include-provisional`，并检查返回的 `uses_provisional`。
+
+`stock-signals` 的行业内排名只使用同一次调用取得的当前行业归属和实时行情，返回 `sector_alignment.status=current_only` 与 `as_of`。它不能代替历史时点的板块成分快照。`last_30m_return` 定义为最后一分钟收盘价相对 30 根一分钟线之前收盘价的收益；高低点时间取第一次达到当日极值的分钟。
 
 ### 工具命令
 

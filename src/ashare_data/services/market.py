@@ -5,6 +5,7 @@ from __future__ import annotations
 import threading
 import time
 from datetime import date, datetime, time as clock_time
+from statistics import median
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -182,6 +183,71 @@ def _prior_four_day_return(change_5d: Any, change_1d: Any) -> float | None:
     return round(((1 + float(change_5d) / 100) / (1 + float(change_1d) / 100) - 1) * 100, 4)
 
 
+def _percentile_value(values: list[float], fraction: float) -> float | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * fraction
+    lower = int(position)
+    upper = min(lower + 1, len(ordered) - 1)
+    weight = position - lower
+    return round(ordered[lower] * (1 - weight) + ordered[upper] * weight, 4)
+
+
+def _previous_limit_up_feedback(
+    quotes: list[dict[str, Any]], limit_data: dict[str, Any]
+) -> dict[str, Any]:
+    previous_rows = list((limit_data.get("previous_limit_up") or {}).get("rows") or [])
+    quote_by_symbol = {str(row.get("symbol")): row for row in quotes if row.get("symbol")}
+    current_up = {
+        str(row.get("symbol")): row
+        for row in (limit_data.get("limit_up") or {}).get("rows") or []
+        if row.get("symbol")
+    }
+    current_down = {
+        str(row.get("symbol"))
+        for row in (limit_data.get("limit_down") or {}).get("rows") or []
+        if row.get("symbol")
+    }
+    changes = [
+        float(quote_by_symbol[str(row["symbol"])]["change_pct"])
+        for row in previous_rows
+        if row.get("symbol") in quote_by_symbol
+        and quote_by_symbol[str(row["symbol"])].get("change_pct") is not None
+    ]
+    promotions: dict[str, dict[str, int]] = {}
+    observed = 0
+    for row in previous_rows:
+        symbol = str(row.get("symbol") or "")
+        prior_streak = int(row.get("streak") or 0)
+        if not symbol or symbol not in quote_by_symbol or prior_streak < 1:
+            continue
+        observed += 1
+        key = f"{prior_streak}_to_{prior_streak + 1}"
+        bucket = promotions.setdefault(key, {"eligible_observed": 0, "success": 0})
+        bucket["eligible_observed"] += 1
+        current = current_up.get(symbol)
+        if current and int(current.get("streak") or 0) >= prior_streak + 1:
+            bucket["success"] += 1
+    return {
+        "cohort_count": len(previous_rows),
+        "observed_count": len(changes),
+        "coverage": round(len(changes) / len(previous_rows), 4) if previous_rows else None,
+        "today_up_count": sum(value > 0 for value in changes),
+        "today_down_count": sum(value < 0 for value in changes),
+        "today_flat_count": sum(value == 0 for value in changes),
+        "today_limit_up_count": sum(str(row.get("symbol")) in current_up for row in previous_rows),
+        "today_limit_down_count": sum(str(row.get("symbol")) in current_down for row in previous_rows),
+        "return_pct": {
+            "p25": _percentile_value(changes, 0.25),
+            "median": round(median(changes), 4) if changes else None,
+            "p75": _percentile_value(changes, 0.75),
+        },
+        "promotion": promotions,
+        "eligibility_basis": "previous_limit_up_with_current_quote_observed",
+    }
+
+
 def _limit_activity_by_symbol(limit_data: dict[str, Any]) -> dict[str, dict[str, Any]]:
     activity: dict[str, dict[str, Any]] = {}
     observation_days = 1 + int(limit_data.get("previous_limit_up") is not None)
@@ -274,6 +340,31 @@ def market_stock_signals() -> tuple[dict[str, Any], list[SourceRef], list[Warnin
         ranks = _percentiles(rows, field)
         for row in rows:
             row[output] = ranks.get(str(row["symbol"]))
+    by_industry: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        if row.get("industry"):
+            by_industry.setdefault(str(row["industry"]), []).append(row)
+    for members in by_industry.values():
+        return_ranks = _percentiles(members, "change_pct")
+        amount_ranks = _percentiles(members, "amount")
+        ordered_amount = sorted(
+            (row for row in members if row.get("amount") is not None),
+            key=lambda row: float(row["amount"]),
+            reverse=True,
+        )
+        amount_positions = {str(row["symbol"]): index + 1 for index, row in enumerate(ordered_amount)}
+        for row in members:
+            symbol = str(row["symbol"])
+            row["sector_return_pctile"] = return_ranks.get(symbol)
+            row["sector_amount_pctile"] = amount_ranks.get(symbol)
+            row["sector_amount_rank"] = amount_positions.get(symbol)
+            row["sector_member_count"] = len(members)
+            row["sector_alignment"] = {
+                "status": "current_only",
+                "membership_basis": "eastmoney_current_industry_cross_section",
+                "quote_basis": "tencent_realtime_cross_section",
+                "as_of": snapshot["retrieved_at"],
+            }
     coverage = {
         output: sum(row.get(output) is not None for row in rows)
         for output in percentile_fields
@@ -288,6 +379,7 @@ def market_stock_signals() -> tuple[dict[str, Any], list[SourceRef], list[Warnin
             "dimensions": list(percentile_fields) + ["limit_activity"],
             "dimension_coverage": coverage,
             "limit_activity_observation_days": limit_observation_days,
+            "previous_limit_up_feedback": _previous_limit_up_feedback(snapshot["quotes"], limits),
         },
         [
             SourceRef(provider="tdx", role="security_master"),

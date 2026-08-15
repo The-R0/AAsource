@@ -88,9 +88,9 @@ def get_catalog() -> dict[str, Any]:
                 "subcommands": ["snapshot", "cross-section", "stock-signals", "movers", "breadth", "limits"],
                 "snapshot": "cheap compact overview",
                 "cross-section": "canonical full-A quotes for scan/context (hot cache)",
-                "stock-signals": "full-A discovery dimensions with explicit basis and coverage",
+                "stock-signals": "full-A dimensions, current-sector ranks, and previous-limit-up feedback",
                 "breadth": "dedicated breadth dataset",
-                "limits": "limit-up/down/broken pools + sealed/broken/max_streak summary",
+                "limits": "limit pools with first/last seal time, breaks, streak, seal amount, and turnover",
                 "movers": "cross-sectional ranking",
             },
             "sectors": {

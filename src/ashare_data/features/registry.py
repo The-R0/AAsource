@@ -12,7 +12,7 @@ class FeatureDefinition:
     version: int
     required_fields: tuple[str, ...]
     params: tuple[str, ...]
-    compute: Callable[[pd.DataFrame, dict[str, Any]], float | None]
+    compute: Callable[[pd.DataFrame, dict[str, Any]], Any]
 
 
 _REGISTRY: dict[str, FeatureDefinition] = {}

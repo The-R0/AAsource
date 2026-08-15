@@ -46,3 +46,32 @@ def test_stock_signals_derive_all_requested_dimensions(monkeypatch) -> None:
     assert first["persistence_return_4d_pct"] is not None
     assert first["limit_activity"]["today_state"] == "limit_up"
     assert data["dimension_coverage"]["sector_divergence_pctile"] == 2
+    assert first["sector_amount_rank"] == 2
+    assert first["sector_return_pctile"] == 100.0
+    assert first["sector_alignment"]["status"] == "current_only"
+    assert data["previous_limit_up_feedback"]["cohort_count"] == 0
+
+
+def test_previous_limit_up_feedback_is_distribution_not_a_score() -> None:
+    feedback = market._previous_limit_up_feedback(
+        [
+            {"symbol": "SH600001", "change_pct": 10.0},
+            {"symbol": "SZ000002", "change_pct": -2.0},
+        ],
+        {
+            "previous_limit_up": {
+                "rows": [
+                    {"symbol": "SH600001", "streak": 1},
+                    {"symbol": "SZ000002", "streak": 2},
+                ]
+            },
+            "limit_up": {"rows": [{"symbol": "SH600001", "streak": 2}]},
+            "limit_down": {"rows": []},
+        },
+    )
+
+    assert feedback["return_pct"]["median"] == 4.0
+    assert feedback["today_up_count"] == 1
+    assert feedback["today_down_count"] == 1
+    assert feedback["promotion"]["1_to_2"] == {"eligible_observed": 1, "success": 1}
+    assert feedback["promotion"]["2_to_3"] == {"eligible_observed": 1, "success": 0}
