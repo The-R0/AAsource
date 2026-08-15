@@ -42,10 +42,6 @@ _REQUIRED = {
     "distance_to_intraday_high": lambda p: 1,
     "distance_to_intraday_low": lambda p: 1,
     "intradaily_volume_ratio": lambda p: int(p.get("window", 5)) + 1,
-    "intraday_high_time": lambda p: 1,
-    "intraday_low_time": lambda p: 1,
-    "max_drawdown_from_high": lambda p: 1,
-    "last_30m_return": lambda p: 31,
     "relative_return_index": lambda p: int(p.get("window", 5)) + 1,
     "relative_return_sector": lambda p: 1,
     "sector_return_rank": lambda p: 1,
@@ -57,7 +53,7 @@ _REQUIRED = {
     "obv": lambda p: 2,
 }
 
-_SECTOR_PENDING = {
+_SECTOR_FEATURES = {
     "relative_return_sector",
     "sector_return_rank",
     "sector_amount_rank",
@@ -130,16 +126,6 @@ def _expand_set_names(raw: str | list[str], sets: dict[str, Any]) -> list[str]:
 
 
 def _feature_result(defn, frame: pd.DataFrame, params: dict[str, Any], *, uses_provisional: bool) -> dict[str, Any]:
-    if defn.id in _SECTOR_PENDING:
-        return {
-            "id": defn.id,
-            "version": defn.version,
-            "params": params,
-            "value": None,
-            "status": "unavailable",
-            "reason": "sector_membership_not_ready",
-            "uses_provisional": uses_provisional,
-        }
     required_fn = _REQUIRED.get(defn.id)
     required = required_fn(params) if required_fn else int(params.get("window") or 1)
     observations = int(len(frame))
@@ -169,6 +155,19 @@ def _feature_result(defn, frame: pd.DataFrame, params: dict[str, Any], *, uses_p
             "uses_provisional": uses_provisional,
         }
     value = defn.compute(frame, params)
+    if defn.id in _SECTOR_FEATURES and (not isinstance(value, dict) or not value.get("items")):
+        context = frame.attrs.get("sector_relative_context") or {}
+        return {
+            "id": defn.id,
+            "version": defn.version,
+            "params": params,
+            "value": value,
+            "status": "unavailable",
+            "reason": context.get("reason") or "sector_fact_unavailable",
+            "observations": observations,
+            "required_observations": required,
+            "uses_provisional": uses_provisional,
+        }
     if value is None and defn.id in {"turnover_rate", "average_turnover", "turnover_percentile"}:
         return {
             "id": defn.id,
@@ -271,6 +270,8 @@ def compute_feature_sets(
                 daily = _daily_frame(symbol, include_provisional=include_provisional)
             frame, uses_provisional = daily
             tf_used = "1d"
+        if name == "relative_core" and "sector_relative_context" not in frame.attrs:
+            frame.attrs["sector_relative_context"] = relative.build_sector_relative_context(symbol, frame)
         features = []
         for item in spec.get("features") or []:
             defn = get_feature(item["id"])

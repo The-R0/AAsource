@@ -43,10 +43,13 @@ def run_features(
                 message="feature inputs may include unfinished bars; inspect uses_provisional on each result",
             )
         )
+    sources = [SourceRef(provider="tdx", role="canonical_daily"), SourceRef(provider="internal", role="features")]
+    if {"relative_core", "agent_core"} & set(names):
+        sources.append(SourceRef(provider="eastmoney", role="sector_membership_and_relative_facts"))
     return ok(
         "features",
         data,
-        sources=[SourceRef(provider="tdx", role="canonical_daily"), SourceRef(provider="internal", role="features")],
+        sources=sources,
         warnings=warnings,
         degraded=degraded,
     )

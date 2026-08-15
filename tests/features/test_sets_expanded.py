@@ -23,11 +23,29 @@ def test_volatility_and_technical():
     assert any(f["id"] == "rsi" and f["params"].get("window") == 14 for f in tech["features"])
 
 
-def test_relative_partial_and_agent_core():
+def test_relative_sector_facts_and_agent_core(monkeypatch):
+    monkeypatch.setattr(
+        "ashare_data.features.relative.build_sector_relative_context",
+        lambda symbol, frame: {
+            "status": "ok",
+            "symbol": symbol,
+            "retrieved_at": "2026-08-14T15:01:00+08:00",
+            "requested_memberships": 1,
+            "sector_data": {
+                "BK0001": {
+                    "membership": {"sector_id": "BK0001", "sector_name": "测试", "relation_type": "industry"},
+                    "bars": frame.to_dict("records"),
+                    "members": [{"symbol": symbol, "change_pct": 1.0, "amount": 2.0, "turnover_rate": 3.0}],
+                }
+            },
+            "errors": {},
+        },
+    )
     rel = compute_feature_set("SH600036", "relative_core")
-    assert rel["availability"] == "partial"
+    assert rel["availability"] == "available"
     sector = next(f for f in rel["features"] if f["id"] == "sector_return_rank")
-    assert sector["status"] == "unavailable"
+    assert sector["status"] == "ok"
+    assert sector["value"]["items"][0]["rank"] == 1
     multi = compute_feature_sets("SH600036", ["agent_core"])
     names = {s["set"] for s in multi["sets"]}
     assert {"trend_core", "volume_core", "volatility_core", "relative_core"} <= names

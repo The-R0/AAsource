@@ -51,7 +51,7 @@ volatility_core:
     - {id: atr_percentile, params: {window: 60}}
 
 intraday_core:
-  version: 2
+  version: 1
   availability: available
   requires_timeframe: 1m
   features:
@@ -61,15 +61,11 @@ intraday_core:
     - {id: distance_to_intraday_high, params: {}}
     - {id: distance_to_intraday_low, params: {}}
     - {id: intradaily_volume_ratio, params: {window: 5}}
-    - {id: intraday_high_time, params: {}}
-    - {id: intraday_low_time, params: {}}
-    - {id: max_drawdown_from_high, params: {}}
-    - {id: last_30m_return, params: {}}
 
 relative_core:
-  version: 1
-  availability: partial
-  note: "Index-relative returns available when benchmark bars exist; sector ranks await sector membership."
+  version: 2
+  availability: available
+  note: "Sector facts are returned per current industry/concept membership with explicit temporal basis."
   features:
     - {id: relative_return_index, params: {window: 1, benchmark: SH000300}}
     - {id: relative_return_index, params: {window: 5, benchmark: SH000300}}

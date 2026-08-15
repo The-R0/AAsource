@@ -139,14 +139,14 @@ aasource bars SH600664 --tf 15m --start 2026-07-21 --end 2026-07-21 --limit 16
 | `trend_core` | `aasource features SH600036 --set trend_core` | 均线、区间收益、滚动高低点、突破和距离 |
 | `volume_core` | `aasource features SH600036 --set volume_core` | 均量、均额、量比、额比、换手率和分位数 |
 | `volatility_core` | `aasource features SH600036 --set volatility_core` | ATR、波动率、振幅和波动分位数 |
-| `intraday_core` | `aasource features SH600036 --set intraday_core --tf 1m` | VWAP、首次日内高低点时间、最大回撤、尾盘 30 分钟收益、日内收益和分钟量比 |
-| `relative_core` | `aasource features SH600036 --set relative_core` | 相对沪深 300 收益；部分板块相对指标暂不可用 |
+| `intraday_core` | `aasource features SH600036 --set intraday_core --tf 1m` | VWAP、日内收益、日内高低点距离和分钟量比 |
+| `relative_core` | `aasource features SH600036 --set relative_core` | 相对沪深 300 收益；按当前行业/概念分别返回板块相对收益及板块内收益、成交额、换手率排名 |
 | `technical_extended` | `aasource features SH600036 --set technical_extended` | EMA、MACD、RSI、布林带和 OBV |
 | `agent_core` | `aasource features SH600036 --set agent_core` | 趋势、量价、波动和相对强弱的组合集合 |
 
 多个集合可以逗号分隔，多个股票使用 `--symbols SH600036,SH600050`。日线特征默认排除尚未收盘确认的当日 K 线；确实需要盘中值时增加 `--include-provisional`，并检查返回的 `uses_provisional`。
 
-`stock-signals` 的行业内排名只使用同一次调用取得的当前行业归属和实时行情，返回 `sector_alignment.status=current_only` 与 `as_of`。它不能代替历史时点的板块成分快照。`last_30m_return` 定义为最后一分钟收盘价相对 30 根一分钟线之前收盘价的收益；高低点时间取第一次达到当日极值的分钟。
+`stock-signals` 的行业内排名只使用同一次调用取得的当前行业归属和实时行情，返回 `sector_alignment.status=current_only` 与 `as_of`。它不能代替历史时点的板块成分快照。`relative_core` 不会在多重归属时擅自挑选或平均板块，而是在每个特征的 `value.items` 中逐板块返回；历史窗口使用共同交易日对齐，并明确标记归属来自当前快照。
 
 ### 工具命令
 
