@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ashare_data.services.limit_history import classify_limit_history
+from aasource.services.limit_history import classify_limit_history
 
 
 def _bar(day: str, previous: float, high: float, close: float):

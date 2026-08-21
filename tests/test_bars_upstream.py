@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ashare_data.services import bars as bars_service
+from aasource.services import bars as bars_service
 
 
 def test_daily_bars_use_tdx_without_local_release_or_universe(monkeypatch, tmp_path) -> None:

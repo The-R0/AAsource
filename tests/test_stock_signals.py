@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ashare_data.services import market
+from aasource.services import market
 
 
 def test_stock_signals_derive_all_requested_dimensions(monkeypatch) -> None:

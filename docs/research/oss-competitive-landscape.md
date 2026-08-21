@@ -1,4 +1,4 @@
-# A-share Data Hub 开源许可与竞争格局
+# AAsource 开源许可与竞争格局
 
 更新时间：2026-08-12
 
@@ -6,7 +6,7 @@
 
 AKShare 的代码采用标准 MIT License，可以使用、修改、分发和商业使用，但必须保留版权和许可声明；该许可只覆盖 AKShare 代码，不自动授予东方财富、腾讯、通达信等上游数据的使用或再分发权。[AKShare LICENSE](https://github.com/akfamily/akshare/blob/main/LICENSE) [AKShare 官方仓库](https://github.com/akfamily/akshare)
 
-A-share Data Hub 不适合定位成“AKShare 替代品”或“首个多源 A 股库”。更准确且有区分度的定位是：**面向 Agent 与自动化脚本的无状态、provider-explicit、可审计 A 股事实层，以稳定 JSON CLI 提供规范化事实，而不是提供宽泛的 DataFrame 接口或本地数据库。**
+AAsource 不适合定位成“AKShare 替代品”或“首个多源 A 股库”。更准确且有区分度的定位是：**面向 Agent 与自动化脚本的无状态、provider-explicit、可审计 A 股事实层，以稳定 JSON CLI 提供规范化事实，而不是提供宽泛的 DataFrame 接口或本地数据库。**
 
 ## 直接或邻近项目
 

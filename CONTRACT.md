@@ -5,7 +5,7 @@
 | Plane | Field | v1 |
 |---|---|---|
 | CLI envelope | `schema_version` | `1.0` |
-| Domain / bar | `domain_version` (catalog) | `1` |
+| Domain / bar | `domain_version` (catalog) | `2` |
 | Feature defs | per feature / set `version` | see `feature_sets.yaml` |
 
 Additive CLI fields → `1.x`. Breaking → `2.0`. Planes upgrade independently.
@@ -241,7 +241,7 @@ OHLCV for a sector id uses `bars <sector-id>` — **not** `sectors bars`. Sector
 
 ## Features
 
-- Sets are packaged presets in `ashare_data/resources/feature_sets.yaml`, not CLI subcommands
+- Sets are packaged presets in `aasource/resources/feature_sets.yaml`, not CLI subcommands
 - Sets: `trend_core`, `volume_core`, `volatility_core`, `intraday_core`, `relative_core`, `technical_extended`, `agent_core` (includes)
 - Multi-set: `--set trend_core,volume_core`
 - Registry item: `{id, version, params, value, status, observations?, required_observations?, uses_provisional?, reason?}`
@@ -253,7 +253,7 @@ OHLCV for a sector id uses `bars <sector-id>` — **not** `sectors bars`. Sector
 
 ## Freshness
 
-See `ashare_data/resources/freshness.yaml`. Stale detection must use TradingCalendar for day-based rules.
+See `aasource/resources/freshness.yaml`. Stale detection must use TradingCalendar for day-based rules.
 
 ## Health
 

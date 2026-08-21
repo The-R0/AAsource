@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from ashare_data.providers.eastmoney_boards import _map_sector_daily_kline
-from ashare_data.services import bars as bars_service
+from aasource.providers.eastmoney_boards import _map_sector_daily_kline
+from aasource.services import bars as bars_service
 
 
 def test_maps_sector_daily_kline_to_canonical_units() -> None:
@@ -20,7 +20,7 @@ def test_maps_sector_daily_kline_to_canonical_units() -> None:
 
 def test_sector_daily_uses_same_bars_interface(monkeypatch) -> None:
     monkeypatch.setattr(
-        "ashare_data.providers.eastmoney_boards.fetch_sector_daily",
+        "aasource.providers.eastmoney_boards.fetch_sector_daily",
         lambda sector_id, **kwargs: {
             "sector_id": sector_id,
             "name": "银行Ⅱ",

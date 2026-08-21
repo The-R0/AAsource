@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ashare_data.normalize.quotes import quote_from_tencent_row
+from aasource.normalize.quotes import quote_from_tencent_row
 
 
 def test_quote_volume_shares_not_lots():

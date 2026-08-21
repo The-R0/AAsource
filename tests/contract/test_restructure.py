@@ -5,13 +5,13 @@ import json
 import pandas as pd
 import pytest
 
-from ashare_data.agent_cli.main import build_parser, main
-from ashare_data.domain.errors import AshareDataError, ErrorCode
-from ashare_data.normalize.bars import bars_from_daily_frame
-from ashare_data.services import bars as bars_service
-from ashare_data.services import market as market_service
-from ashare_data.services import reference as reference_service
-from ashare_data.services._reference_eastmoney import _EastmoneyReferenceSource
+from aasource.agent_cli.main import build_parser, main
+from aasource.domain.errors import AshareDataError, ErrorCode
+from aasource.normalize.bars import bars_from_daily_frame
+from aasource.services import bars as bars_service
+from aasource.services import market as market_service
+from aasource.services import reference as reference_service
+from aasource.services._reference_eastmoney import _EastmoneyReferenceSource
 
 
 def test_canonical_daily_volume_is_already_shares() -> None:

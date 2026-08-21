@@ -1,7 +1,7 @@
-# A-share Data Hub：依赖许可证与上游数据使用条款核查
+# AAsource：依赖许可证与上游数据使用条款核查
 
 > 核查日期：2026-08-12  
-> 范围：当前 `pyproject.toml` 与 `src/ashare_data` 实际调用的数据源。  
+> 范围：当前 `pyproject.toml` 与 `src/aasource` 实际调用的数据源。  
 > 本文是工程风险梳理，不是法律意见；若计划商业化、提供 SaaS/API 或批量再分发数据，应让专业律师审阅并向数据权利方取得书面授权。
 
 ## 结论

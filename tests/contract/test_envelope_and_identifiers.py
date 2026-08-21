@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from ashare_data.domain.errors import AshareDataError, ErrorCode
-from ashare_data.domain.identifiers import canonicalize_symbol, parse_symbol_input
-from ashare_data.domain.schemas import BAR_REQUIRED, ENVELOPE_REQUIRED, QUOTE_REQUIRED, assert_keys
-from ashare_data.agent_cli.envelope import fail, ok
-from ashare_data.domain.models import SourceRef
+from aasource.domain.errors import AshareDataError, ErrorCode
+from aasource.domain.identifiers import canonicalize_symbol, parse_symbol_input
+from aasource.domain.schemas import BAR_REQUIRED, ENVELOPE_REQUIRED, QUOTE_REQUIRED, assert_keys
+from aasource.agent_cli.envelope import fail, ok
+from aasource.domain.models import SourceRef
 
 
 def test_canonicalize_symbol_variants():

@@ -4,10 +4,10 @@ import json
 import math
 from datetime import date
 
-from ashare_data.agent_cli.serializers import sanitize_for_json
-from ashare_data.domain.calendar import TradingCalendar
-from ashare_data.domain.validators import validate_ohlc
-from ashare_data.services.calendar import calendar_info, previous_trading_day, resolve_trading_dates
+from aasource.agent_cli.serializers import sanitize_for_json
+from aasource.domain.calendar import TradingCalendar
+from aasource.domain.validators import validate_ohlc
+from aasource.services.calendar import calendar_info, previous_trading_day, resolve_trading_dates
 
 
 def test_trading_calendar_weekday():
@@ -25,7 +25,7 @@ def test_trading_calendar_weekday():
 
 def test_market_date_resolution_prefers_canonical_bars(monkeypatch):
     rows = [{"trade_date": "2026-08-07"}, {"trade_date": "2026-08-10"}]
-    monkeypatch.setattr("ashare_data.services.calendar.get_bars", lambda *_args, **_kwargs: (rows, [], [], False, {}))
+    monkeypatch.setattr("aasource.services.calendar.get_bars", lambda *_args, **_kwargs: (rows, [], [], False, {}))
     assert resolve_trading_dates(date(2026, 8, 11)) == (
         "2026-08-10",
         "2026-08-07",
@@ -37,7 +37,7 @@ def test_market_date_resolution_discloses_calendar_fallback(monkeypatch):
     def unavailable(*_args, **_kwargs):
         raise RuntimeError("offline")
 
-    monkeypatch.setattr("ashare_data.services.calendar.get_bars", unavailable)
+    monkeypatch.setattr("aasource.services.calendar.get_bars", unavailable)
     assert resolve_trading_dates(date(2026, 8, 9)) == (
         "2026-08-07",
         "2026-08-06",

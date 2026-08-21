@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 
-from ashare_data.agent_cli.main import main
-from ashare_data.domain.schemas import BAR_REQUIRED, ENVELOPE_REQUIRED, assert_keys
+from aasource.agent_cli.main import main
+from aasource.domain.schemas import BAR_REQUIRED, ENVELOPE_REQUIRED, assert_keys
 
 
 def _run(argv, capsys):

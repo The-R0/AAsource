@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from ashare_data.domain.identifiers import parse_symbol_input
-from ashare_data.providers.tencent import parse_tencent_quotes
-from ashare_data.services.market import summarize_market
+from aasource.domain.identifiers import parse_symbol_input
+from aasource.providers.tencent import parse_tencent_quotes
+from aasource.services.market import summarize_market
 
 
 def test_normalize_symbols_accepts_common_formats() -> None:
@@ -39,9 +39,23 @@ def test_parse_tencent_quote_fields() -> None:
     rows = parse_tencent_quotes('v_sh600000="' + "~".join(cells) + '";')
 
     assert rows[0]["code"] == "600000"
+    assert rows[0]["symbol"] == "SH600000"
     assert rows[0]["price"] == 10.2
     assert rows[0]["amount"] == pytest.approx(56_789_000)
     assert rows[0]["source_time"] == "20260806103000"
+
+
+def test_parse_tencent_quote_preserves_prefixed_index_exchange() -> None:
+    cells = [""] * 39
+    cells[1] = "上证指数"
+    cells[2] = "000001"
+    cells[3] = "3950"
+    cells[4] = "3900"
+    cells[5] = "3910"
+    cells[30] = "20260817100000"
+    cells[36] = "100"
+    rows = parse_tencent_quotes('v_sh000001="' + "~".join(cells) + '";')
+    assert rows[0]["symbol"] == "SH000001"
 
 
 def test_summarize_market() -> None:

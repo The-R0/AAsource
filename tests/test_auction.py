@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from ashare_data.providers.tencent import parse_tencent_quotes
-from ashare_data.services import auction as auction_service
+from aasource.providers.tencent import parse_tencent_quotes
+from aasource.services import auction as auction_service
 
 
 def _tencent_auction_text(*, source_time: str = "20260812092235") -> str:

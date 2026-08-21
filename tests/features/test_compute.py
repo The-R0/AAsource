@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ashare_data.features.compute import compute_feature_set, compute_features_batch
+from aasource.features.compute import compute_feature_set, compute_features_batch
 
 
 def test_batch_features():

@@ -3,26 +3,26 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-PACKAGE = Path(__file__).resolve().parents[2] / "src" / "ashare_data"
+PACKAGE = Path(__file__).resolve().parents[2] / "src" / "aasource"
 RETIRED = {
-    "ashare_data.mcp_server",
-    "ashare_data.cli",
-    "ashare_data.realtime",
-    "ashare_data.release",
-    "ashare_data.tdx",
-    "ashare_data.views",
-    "ashare_data.services.limits",
-    "ashare_data.storage.release_store",
-    "ashare_data.storage.cache_store",
-    "ashare_data.storage.manifests",
-    "ashare_data.storage.parquet_store",
-    "ashare_data.pipelines.releases",
-    "ashare_data.releases",
-    "ashare_data.services.universes",
-    "ashare_data.pipelines.symbols",
-    "ashare_data.pipelines.views",
-    "ashare_data.pipelines.security_master",
-    "ashare_data.storage.runtime_store",
+    "aasource.mcp_server",
+    "aasource.cli",
+    "aasource.realtime",
+    "aasource.release",
+    "aasource.tdx",
+    "aasource.views",
+    "aasource.services.limits",
+    "aasource.storage.release_store",
+    "aasource.storage.cache_store",
+    "aasource.storage.manifests",
+    "aasource.storage.parquet_store",
+    "aasource.pipelines.releases",
+    "aasource.releases",
+    "aasource.services.universes",
+    "aasource.pipelines.symbols",
+    "aasource.pipelines.views",
+    "aasource.pipelines.security_master",
+    "aasource.storage.runtime_store",
 }
 
 
@@ -71,7 +71,7 @@ def test_features_do_not_import_provider_or_storage_modules() -> None:
         leaked = {
             name
             for name in _imports(path)
-            if name.startswith("ashare_data.providers") or name.startswith("ashare_data.storage")
+            if name.startswith("aasource.providers") or name.startswith("aasource.storage")
         }
         if leaked:
             offenders.append(f"{path.name}: {sorted(leaked)}")
@@ -86,7 +86,7 @@ def test_cli_and_normalize_do_not_cross_fact_seams() -> None:
             leaked = {
                 name
                 for name in _imports(path)
-                if name.startswith("ashare_data.providers") or name.startswith("ashare_data.storage")
+                if name.startswith("aasource.providers") or name.startswith("aasource.storage")
             }
             if leaked:
                 offenders.append(f"{path.relative_to(PACKAGE)}: {sorted(leaked)}")
@@ -96,10 +96,10 @@ def test_cli_and_normalize_do_not_cross_fact_seams() -> None:
 def test_agent_cli_is_independent_of_the_historical_database() -> None:
     """The query CLI is only an adapter over upstream fact providers."""
     forbidden_imports = {
-        "ashare_data.releases",
-        "ashare_data.services.universes",
-        "ashare_data.pipelines.symbols",
-        "ashare_data.pipelines.views",
+        "aasource.releases",
+        "aasource.services.universes",
+        "aasource.pipelines.symbols",
+        "aasource.pipelines.views",
     }
     offenders: list[str] = []
     roots = [PACKAGE / "agent_cli", PACKAGE / "services"]
@@ -143,7 +143,7 @@ def test_package_has_no_local_database_paths_or_persistent_cache() -> None:
     for path in PACKAGE.rglob("*.py"):
         source = path.read_text(encoding="utf-8")
         leaked = sorted(token for token in forbidden_tokens if token in source)
-        imports_storage = any(name.startswith("ashare_data.storage") for name in _imports(path))
+        imports_storage = any(name.startswith("aasource.storage") for name in _imports(path))
         if leaked or imports_storage:
             offenders.append(
                 f"{path.relative_to(PACKAGE)}: tokens={leaked}, imports_storage={imports_storage}"

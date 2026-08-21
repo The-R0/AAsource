@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from ashare_data.normalize import ex_reference, normalize_daily
+from aasource.normalize import ex_reference, normalize_daily
 
 
 def test_cash_dividend_adjustment_is_causal() -> None:

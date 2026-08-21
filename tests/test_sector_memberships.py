@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from ashare_data.agent_cli.main import build_parser, dispatch
-from ashare_data.providers import eastmoney_boards
-from ashare_data.services import sectors
+from aasource.agent_cli.main import build_parser, dispatch
+from aasource.providers import eastmoney_boards
+from aasource.services import sectors
 
 
 def test_provider_normalizes_reverse_membership(monkeypatch) -> None:

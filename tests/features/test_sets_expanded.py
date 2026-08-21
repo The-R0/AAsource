@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ashare_data.features.compute import compute_feature_set, compute_feature_sets
+from aasource.features.compute import compute_feature_set, compute_feature_sets
 
 
 def test_trend_core_has_breakout_and_ma60():

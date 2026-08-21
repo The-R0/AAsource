@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from ashare_data.providers.tdx import TdxHost, TdxProvider
+from aasource.providers.tdx import TdxHost, TdxProvider
 
 
 def test_security_master_cache_is_process_local(monkeypatch) -> None:
