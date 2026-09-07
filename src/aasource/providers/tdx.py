@@ -64,7 +64,7 @@ def bar_date(row: dict[str, Any]) -> date:
 
 
 class TdxClient:
-    def __init__(self, hosts: list[TdxHost], timeout: float = 8.0):
+    def __init__(self, hosts: list[TdxHost], timeout: float = 3.5):
         if not hosts:
             raise ValueError("at least one TDX host is required")
         self.hosts = hosts
@@ -72,7 +72,9 @@ class TdxClient:
 
     def fetch(self, code: str, count: int) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str, bool]:
         errors: list[str] = []
-        for host in self.hosts:
+        start_idx = abs(hash(code)) % len(self.hosts)
+        ordered_hosts = self.hosts[start_idx:] + self.hosts[:start_idx]
+        for host in ordered_hosts:
             try:
                 bars, actions, exhausted = self._fetch_host(host, code, count)
                 if not bars:

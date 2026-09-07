@@ -9,7 +9,7 @@ from typing import Any
 import requests
 
 from aasource.domain.identifiers import canonicalize_symbol
-from aasource.domain.sectors import canonicalize_sector_id, eastmoney_sector_secid
+from aasource.domain.sectors import canonicalize_em_board_code, canonicalize_sector_id, eastmoney_sector_secid
 from aasource.providers.eastmoney import EastmoneyProviderError, UT, _get_json, _number
 
 CLIST_URL = "https://push2.eastmoney.com/api/qt/clist/get"
@@ -188,7 +188,8 @@ def fetch_stock_memberships(symbol: str) -> dict[str, Any]:
             {
                 "name": name,
                 "relation_type": _membership_type(row),
-                "source_id": board_code,
+                "source": "em",
+                "source_id": canonicalize_em_board_code(board_code),
                 "rank": int(_number(row.get("BOARD_RANK")) or 0) or None,
                 "precise": str(row.get("IS_PRECISE") or "") == "1",
             }

@@ -63,3 +63,111 @@ def bare_code(symbol: str) -> str:
 def tencent_symbol(symbol: str) -> str:
     symbol = canonicalize_symbol(symbol)
     return f"{symbol[:2].lower()}{symbol[2:]}"
+
+
+# ---------------------------------------------------------------------------
+# Board classification and Account Execution Permission (Main Board Only)
+# ---------------------------------------------------------------------------
+
+_MAINBOARD_SH_PREFIXES = ("600", "601", "603", "605")
+_MAINBOARD_SZ_PREFIXES = ("000", "001", "002", "003")
+_CHINEXT_PREFIXES = ("300", "301")
+_STAR_PREFIXES = ("688", "689")
+
+# Canonical observation anchor indices for non-executable markets and macro context
+MARKET_OBSERVATION_ANCHORS = frozenset({
+    "SZ399006",  # 创业板指
+    "SH000688",  # 科创50
+    "SH000001",  # 上证指数
+    "SZ399001",  # 深证成指
+    "SH000300",  # 沪深300
+    "SH000905",  # 中证500
+    "SH000852",  # 中证1000
+    "SZ399106",  # 深证综指
+})
+
+
+def classify_board(symbol: str) -> str:
+    """Classify instrument into standard board identifier."""
+    canonical = canonicalize_symbol(symbol)
+    exchange = canonical[:2]
+    code = canonical[2:]
+
+    if exchange == "BJ":
+        return "BSE"
+    if exchange == "SH":
+        if code.startswith("000") or code.startswith("000"):
+            return "INDEX"
+        if code.startswith(("51", "56", "58", "50")):
+            return "ETF"
+        if code.startswith(_STAR_PREFIXES):
+            return "STAR"
+        if code.startswith(_MAINBOARD_SH_PREFIXES):
+            return "SH_MAIN"
+    elif exchange == "SZ":
+        if code.startswith("399"):
+            return "INDEX"
+        if code.startswith(("15", "16")):
+            return "ETF"
+        if code.startswith(_CHINEXT_PREFIXES):
+            return "CHINEXT"
+        if code.startswith(_MAINBOARD_SZ_PREFIXES):
+            return "SZ_MAIN"
+
+    return "OTHER"
+
+
+def is_mainboard_executable(symbol: str) -> bool:
+    """Check if symbol belongs to the executable Shanghai/Shenzhen Main Board universe."""
+    board = classify_board(symbol)
+    return board in ("SH_MAIN", "SZ_MAIN")
+
+
+def is_non_executable_board(symbol: str) -> bool:
+    """Check if symbol is explicitly non-executable (STAR, ChiNext, BSE, ETF, Index, etc.)."""
+    return not is_mainboard_executable(symbol)
+
+
+def is_market_observation_anchor(symbol: str) -> bool:
+    """Check if symbol is a designated non-executable market observation anchor."""
+    try:
+        canonical = canonicalize_symbol(symbol)
+        if canonical in MARKET_OBSERVATION_ANCHORS:
+            return True
+        board = classify_board(canonical)
+        return board == "INDEX"
+    except Exception:
+        return False
+
+
+def check_execution_permission(symbol: str) -> tuple[bool, str]:
+    """Strict execution permission gatekeeper.
+
+    Returns:
+        (True, "ACCESSIBLE") for main board stocks.
+        (False, reason_code) for all non-executable instruments.
+    """
+    try:
+        canonical = canonicalize_symbol(symbol)
+    except Exception as exc:
+        return False, f"INVALID_SYMBOL: {exc}"
+
+    exchange = canonical[:2]
+    code = canonical[2:]
+
+    if exchange == "BJ":
+        return False, "EXCLUDED_BOARD_BSE"
+    if code.startswith(_STAR_PREFIXES):
+        return False, "EXCLUDED_BOARD_STAR"
+    if code.startswith(_CHINEXT_PREFIXES):
+        return False, "EXCLUDED_BOARD_CHINEXT"
+    if code.startswith(("51", "56", "58", "50", "15", "16")):
+        return False, "EXCLUDED_TYPE_ETF_OR_FUND"
+    if exchange == "SH" and code.startswith("000") or exchange == "SZ" and code.startswith("399"):
+        return False, "EXCLUDED_TYPE_INDEX"
+
+    if is_mainboard_executable(canonical):
+        return True, "ACCESSIBLE"
+
+    return False, "EXCLUDED_NON_MAINBOARD"
+

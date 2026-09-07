@@ -19,6 +19,7 @@ def test_catalog_cli(capsys):
     data = payload["data"]
     assert "query_capabilities" in data
     assert "auction" in data["query_capabilities"]
+    assert {"scan-stocks", "relative-intraday", "sector-context"} <= set(data["query_capabilities"])
     assert "admin_capabilities" not in data
     assert "admin" not in data["commands"]
     assert "universes" not in data["commands"]
@@ -27,6 +28,8 @@ def test_catalog_cli(capsys):
     assert "deprecated_subcommands" not in data["capabilities"]["market"]
     assert data["capabilities"]["sectors"]["bars"].startswith("use bars")
     assert data["capabilities"]["auction"]["history"] is False
+    assert data["capabilities"]["point_in_time"]["historical_st_status"] == "unavailable"
+    assert data["capabilities"]["point_in_time"]["auction_history"] is False
     assert assert_keys(payload, ENVELOPE_REQUIRED, "envelope") == []
 
 
@@ -87,3 +90,29 @@ def test_local_universes_are_not_exposed_by_cli(capsys):
     code, payload = _run(["universes", "list"], capsys)
     assert code == 2
     assert payload["error"]["code"] == "INVALID_REQUEST"
+
+
+def test_cli_validate_order_mainboard_vs_forbidden(capsys):
+    # Mainboard stock permitted
+    code, payload = _run(["validate-order", "SH600519", "--as-of", "2024-01-02"], capsys)
+    assert code == 0
+    assert payload["data"]["order_permitted"] is True
+    assert payload["data"]["reason_code"] == "ORDER_PERMITTED_MAINBOARD"
+
+    # STAR stock rejected
+    code, payload = _run(["validate-order", "SH688981", "--as-of", "2024-01-02"], capsys)
+    assert payload["data"]["order_permitted"] is False
+    assert "STAR" in payload["data"]["reason_code"]
+
+    # ChiNext stock rejected
+    code, payload = _run(["validate-order", "SZ300750", "--as-of", "2024-01-02"], capsys)
+    assert payload["data"]["order_permitted"] is False
+    assert "CHINEXT" in payload["data"]["reason_code"]
+
+
+def test_cli_quality_audit(capsys):
+    code, payload = _run(["quality-audit"], capsys)
+    assert code == 0
+    assert payload["data"]["status"] == "MAIN_BOARD_DAILY_PIT_READY"
+    assert payload["data"]["summary"]["actual_covered_securities"] >= 3195
+

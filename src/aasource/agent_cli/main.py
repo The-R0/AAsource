@@ -11,11 +11,17 @@ from aasource.agent_cli.commands import features as features_cmd
 from aasource.agent_cli.commands import health as health_cmd
 from aasource.agent_cli.commands import limit_history as limit_history_cmd
 from aasource.agent_cli.commands import market as market_cmd
+from aasource.agent_cli.commands import pit_universe as pit_universe_cmd
+from aasource.agent_cli.commands import quality_audit as quality_audit_cmd
 from aasource.agent_cli.commands import quotes as quotes_cmd
 from aasource.agent_cli.commands import reference as reference_cmd
+from aasource.agent_cli.commands import relative_intraday as relative_intraday_cmd
+from aasource.agent_cli.commands import scan as scan_cmd
+from aasource.agent_cli.commands import sector_context as sector_context_cmd
 from aasource.agent_cli.commands import sectors as sectors_cmd
 from aasource.agent_cli.commands import securities as securities_cmd
 from aasource.agent_cli.commands import trades as trades_cmd
+from aasource.agent_cli.commands import validate_order as validate_order_cmd
 from aasource.agent_cli.envelope import fail
 from aasource.agent_cli.serializers import emit, read_stdin_json
 from aasource.domain.errors import AshareDataError, ErrorCode
@@ -123,7 +129,8 @@ def build_parser() -> argparse.ArgumentParser:
     s = add("sectors", help="sector identity/membership/rankings")
     s_sub = s.add_subparsers(dest="sectors_command", required=True)
     sl = s_sub.add_parser("list", parents=[common])
-    sl.add_argument("--kind", default="all", choices=("all", "industry", "concept"))
+    sl.add_argument("--kind", default="all", choices=("all", "industry", "concept", "ths_concept", "sw"))
+    sl.add_argument("--level", type=int, default=1, help="SW industry level when --kind sw (1|2|3)")
     sl.add_argument("--limit", type=int, default=100)
     sr = s_sub.add_parser("rankings", parents=[common])
     sr.add_argument("--kind", default="industry", choices=("industry", "concept"))
@@ -134,6 +141,12 @@ def build_parser() -> argparse.ArgumentParser:
     sms = s_sub.add_parser("memberships", parents=[common], help="reverse stock-to-sector memberships")
     sms.add_argument("symbols", nargs="*")
     sms.add_argument("--stdin", action="store_true")
+    sms.add_argument(
+        "--source",
+        default="all",
+        choices=("all", "em", "ths", "sw"),
+        help="classification stack: em boards, ths concepts, sw industries, or merged",
+    )
     ss = s_sub.add_parser("search", parents=[common])
     ss.add_argument("query")
     ss.add_argument("--limit", type=int, default=20)
@@ -142,6 +155,22 @@ def build_parser() -> argparse.ArgumentParser:
     smin = s_sub.add_parser("minute", parents=[common], help="sector 1m trends")
     smin.add_argument("sector_id")
     smin.add_argument("--trade-date", default=None)
+
+    scan = add("scan-stocks", help="generic current-session stock filter and rank")
+    scan.add_argument("--filters", default="[]", help="JSON list of {field,op,value}")
+    scan.add_argument("--rank-by", default="amount")
+    scan.add_argument("--ascending", action="store_true")
+    scan.add_argument("--limit", type=int, default=30)
+    scan.add_argument("--date", dest="trade_date", default=None)
+
+    relative = add("relative-intraday", help="aligned stock-versus-sector intraday facts")
+    relative.add_argument("symbol")
+    relative.add_argument("--sector", dest="sector_id", default=None)
+    relative.add_argument("--trade-date", default=None)
+
+    context = add("sector-context", help="one-stop current sector facts")
+    context.add_argument("sector")
+    context.add_argument("--member-limit", type=int, default=20)
 
     r = add("reference", help="canonical reference datasets")
     r.add_argument(
@@ -163,6 +192,15 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--report-date")
     r.add_argument("--category", default="A股", choices=["A股", "B股", "基金", "债券"])
     r.add_argument("--limit", type=int, default=100)
+
+    pu = add("pit-universe", help="reconstruct Point-in-Time tradable Main Board universe")
+    pu.add_argument("--as-of", default=None, help="YYYY-MM-DD Point-in-Time target date")
+
+    vo = add("validate-order", help="validate order against Main Board execution permissions")
+    vo.add_argument("symbol")
+    vo.add_argument("--as-of", default=None, help="YYYY-MM-DD Point-in-Time target date")
+
+    add("quality-audit", help="run 14-point quality verification and certify MAIN_BOARD_DAILY_PIT_READY")
 
     return parser
 
@@ -240,7 +278,25 @@ def dispatch(args) -> tuple[dict, int]:
             limit=getattr(args, "limit", 100),
             trade_date=getattr(args, "trade_date", None),
             symbols=symbols,
+            sw_level=getattr(args, "level", 1),
+            membership_source=getattr(args, "source", "all"),
         )
+    if cmd == "scan-stocks":
+        return scan_cmd.run_scan_stocks(
+            filters=args.filters,
+            rank_by=args.rank_by,
+            descending=not args.ascending,
+            limit=args.limit,
+            trade_date=args.trade_date,
+        )
+    if cmd == "relative-intraday":
+        return relative_intraday_cmd.run_relative_intraday(
+            args.symbol,
+            sector_id=args.sector_id,
+            trade_date=args.trade_date,
+        )
+    if cmd == "sector-context":
+        return sector_context_cmd.run_sector_context(args.sector, member_limit=args.member_limit)
     if cmd == "reference":
         kwargs = {"limit": args.limit}
         if args.dataset in {"dragon-tiger"}:
@@ -290,6 +346,12 @@ def dispatch(args) -> tuple[dict, int]:
             return reference_cmd.run_reference(
                 args.dataset, report_date=args.report_date, symbol=args.symbol, limit=args.limit
             )
+    if cmd == "pit-universe":
+        return pit_universe_cmd.run_pit_universe(as_of=args.as_of)
+    if cmd == "validate-order":
+        return validate_order_cmd.run_validate_order(args.symbol, as_of=args.as_of)
+    if cmd == "quality-audit":
+        return quality_audit_cmd.run_quality_audit()
     raise AshareDataError(ErrorCode.INVALID_REQUEST, f"Unknown command: {cmd}")
 
 

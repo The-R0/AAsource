@@ -33,6 +33,9 @@ def get_catalog() -> dict[str, Any]:
         "market",
         "sectors",
         "reference",
+        "scan-stocks",
+        "relative-intraday",
+        "sector-context",
     ]
     return {
         "contract_version": "1.0",
@@ -89,8 +92,17 @@ def get_catalog() -> dict[str, Any]:
             "sectors": {
                 "implemented": True,
                 "subcommands": ["list", "rankings", "members", "memberships", "search", "resolve", "minute"],
-                "provider": "eastmoney",
-                "reverse_membership": "batch stock-to-sector current snapshot",
+                "providers": {
+                    "eastmoney": "quote-bearing industry/concept boards (BK####) and reverse board membership",
+                    "ths": "THS concept board list and per-stock concepts/company themes (list --kind ths_concept; needs optional py_mini_racer for the board list)",
+                    "legulegu": "Shenwan 2021 formal industry ladder (list --kind sw, members 801xxx.SI, memberships sw_industry)",
+                },
+                "membership_sources": ["all", "em", "ths", "sw"],
+                "industry_classification": {
+                    "market_facing": "eastmoney BK boards",
+                    "formal": "shenwan_2021 (l1/l2/l3)",
+                },
+                "reverse_membership": "batch stock-to-sector current snapshot, merged across sources with per-item partial failures",
                 "bars": "use bars <BK####> --tf 1d|1m — not sectors bars",
             },
             "reference": {
@@ -105,6 +117,34 @@ def get_catalog() -> dict[str, Any]:
                 "streak": True,
                 "method": "canonical_daily_price_limit_match",
                 "historical_st_status": "unavailable",
+            },
+            "point_in_time": {
+                "security_master": "current",
+                "sector_membership": "current_snapshot",
+                "auction_history": False,
+                "historical_st_status": "unavailable",
+                "corporate_actions_adjust": "unsupported",
+                "note": (
+                    "Do not replay a past session with today's ST flag, listing status, "
+                    "limit rule, membership, or unadjusted-as-adjusted prices."
+                ),
+            },
+            "scan_stocks": {
+                "temporal_scope": "current_session",
+                "generic_query": True,
+                "historical_replay": False,
+                "note": "Generic filters and ranking; not a strategy, score, or recommendation.",
+            },
+            "relative_intraday": {
+                "timeframe": "1m",
+                "historical_explicit_sector": True,
+                "historical_implicit_membership": False,
+                "facts": ["relative_return", "delta_relative_return", "extrema_sync", "lead_lag", "divergence"],
+            },
+            "sector_context": {
+                "temporal_scope": "current_session",
+                "historical_replay": False,
+                "judgment_free": True,
             },
         },
         "units": {

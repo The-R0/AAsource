@@ -60,16 +60,45 @@ def security_from_master_row(row: dict[str, Any]) -> Security:
     is_st = None
     if isinstance(name, str):
         is_st = "ST" in name.upper()
+    
+    board = _infer_board(symbol)
+    listed_date = row.get("listed_date")
+    delisted_date = row.get("delisted_date")
+    is_suspended = row.get("is_suspended")
+    is_listed = row.get("is_listed") if "is_listed" in row else (delisted_date is None)
+
+    # Tradable requires mainboard, listed, not ST, not suspended
+    tradable = (
+        board == "mainboard"
+        and bool(is_listed)
+        and not is_st
+        and not bool(is_suspended)
+    )
+
+    execution_role = "ACCESSIBLE" if board == "mainboard" else "EXCLUDED_NON_EXECUTABLE"
+    if _infer_type(symbol, name) == SecurityType.INDEX:
+        execution_role = "NON_EXECUTABLE_MARKET_ANCHOR"
+
     return Security(
         symbol=symbol,
         code=symbol[2:],
         exchange=symbol[:2],
         name=name,
         security_type=_infer_type(symbol, name),
-        board=_infer_board(symbol),
+        board=board,
         is_st=is_st,
-        is_suspended=row.get("is_suspended"),
+        is_suspended=is_suspended,
         price_limit_pct=_price_limit_pct(symbol, is_st),
-        listed_date=row.get("listed_date"),
-        delisted_date=row.get("delisted_date"),
+        listed_date=listed_date,
+        delisted_date=delisted_date,
+        is_listed=is_listed,
+        tradable=tradable,
+        valid_from=row.get("valid_from") or listed_date,
+        valid_to=row.get("valid_to") or delisted_date,
+        event_time=row.get("event_time"),
+        publish_time=row.get("publish_time"),
+        source=str(row.get("source") or "tdx"),
+        coverage_grade=str(row.get("coverage_grade") or "A"),
+        execution_role=execution_role,
     )
+

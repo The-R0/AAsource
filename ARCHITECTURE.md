@@ -36,6 +36,9 @@ flowchart LR
 | `services.market` | Runtime snapshot facts | canonical quote cache、市场宽度、排行、涨跌停与交易日策略 |
 | `services.limit_history` | 单票涨停活动历史 | 只从 canonical daily bars 与明确板块规则推导封板、炸板、连板；历史 ST 缺失保持 unavailable |
 | `services.reference` | Reference fact schema | dataset mapping、单位、时间、来源与 schema drift |
+| `services.scan` | 通用截面查询 | 当前全市场的字段过滤、可选日线增强和排序；不包含策略 |
+| `services.relative_intraday` | 个股 × 板块分时事实 | 同分钟对齐、相对路径、高低点同步与领先/滞后 |
+| `services.sector_context` | 板块事实聚合 | 组合现有 market/sector/bar facts；不依赖插件或本地历史库 |
 | `providers` | 上游 adapter seam | transport 与 vendor parsing；原始字段不得穿过 Fact seam |
 | `normalize` | Fact module 的内部 implementation | identifier、单位、时间与质量转换 |
 | `features` | 可复算 feature sets | 只消费 Canonical bars |
@@ -85,6 +88,8 @@ Provider 失败不能静默更换 authority；`degraded=true` 必须向上暴露
 - Reference fact 只返回英文 canonical fields
 
 架构测试扫描 forbidden imports 与退役 module。
+
+插件可以增加持久化 Radar、主题图谱和角色语义，但主项目不反向依赖插件。只有策略无关、可确定复算、具有明确时间边界的事实计算可以下沉到 `services`。
 
 ## 已退役
 

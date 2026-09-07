@@ -25,13 +25,10 @@ fallback_policy:
 
 tdx_hosts:
   - {host: 180.153.18.170, port: 7709}
-  - {host: 110.41.147.114, port: 7709}
-  - {host: 124.70.176.52, port: 7709}
-  - {host: 121.36.54.217, port: 7709}
   - {host: 60.191.117.167, port: 7709}
   - {host: 115.238.56.198, port: 7709}
 
-timeout_seconds: 8
+timeout_seconds: 4
 default_count: 1200
 minimum_rows: 1000
 minimum_symbol_coverage: 0.98

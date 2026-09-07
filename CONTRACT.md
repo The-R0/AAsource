@@ -218,6 +218,45 @@ Minimal Security fields plus optional:
 - Provider schema 不能映射到 required canonical fields 时：`degraded=true` + `REFERENCE_SCHEMA_DRIFT`。
 - 进程内 Cache 只通过 provenance 的 `cache_hit` 暴露，不输出缓存控制。
 
+## Main Board Point-in-Time (PIT) & Account Execution Universe
+
+### 1. 唯一执行股票池 (Execution Universe)
+
+- **正式执行范围**:
+  - 沪市主板：`SH600/601/603/605`
+  - 深市主板：`SZ000/001/002/003`
+- **正式排除范围**:
+  - 创业板：`SZ300/301`
+  - 科创板：`SH688/689`
+  - 北交所：`BJ`
+  - ETF、基金、债券和指数
+  - 当时处于 ST、停牌、退市或未上市状态的股票
+- **硬拦截规则**:
+  - `SH688*` -> 永远不能产生订单，无法进入 Alpha 候选池
+  - `SH689*` -> 永远不能产生订单
+  - `SZ300*` -> 永远不能产生订单，无法进入 Alpha 候选池
+  - `SZ301*` -> 永远不能产生订单
+  - `BJ*`    -> 永远不能产生订单
+  - 过滤必须发生在因子排名和组合构建之前。
+
+### 2. 非权限板块观察锚 (Market Observation Anchors)
+
+- 观察标的：`SZ399006`（创业板指）、`SH000688`（科创50）及各行业/概念板块指数。
+- 标记为 `NON_EXECUTABLE_MARKET_ANCHOR`。
+- 仅用于宏观风险偏好、成长风格强弱与观察锚，不可交易、不进入个股排名、不产生目标仓位。
+
+### 3. Point-in-Time ST 状态维护
+
+- 必须基于 `is_st(as_of)` 计算时点状态，禁止使用 `is_st(today)`。
+- 历史 ST 摘帽股票在过去 ST 阶段保持 ST；当前 ST 股票在过去正常阶段保持正常。
+- 历史 ST 状态缺失时自动降级覆盖等级 (`DEGRADED`) 并排除在严格回测外。
+
+### 4. 数据分层与质量验收
+
+- 采用 `raw/`、`normalized/`、`manifests/`、`quality_reports/` 规范分层。
+- 覆盖 3,195+ 沪深主板全部历史与退市证券，避免幸存者偏差。
+- 质量验收命令：`AAsource quality-audit`，合格时输出 `MAIN_BOARD_DAILY_PIT_READY`。
+
 ## Limit history
 
 `limit-history <symbol>` 从 canonical unadjusted daily bars 的 `previous_close`、high、close 与板块/日期标准涨跌幅限制识别 `sealed_limit_up`、`broken_limit_up` 和连续封板数。价格按 0.01 tick、`ROUND_HALF_UP` 计算。
@@ -236,8 +275,30 @@ Minimal Security fields plus optional:
 `sectors` owns identity/membership (`list` / `members` / `memberships` / `search`).
 `sectors memberships <symbols...>` is the canonical reverse stock-to-sector current snapshot. It supports up to 100 symbols and preserves item-level partial failures.
 
+### Classification sources
+
+| Source | Provider | Scope | Access |
+|---|---|---|---|
+| `em` | eastmoney | quote-bearing industry/concept boards (`BK####`) + reverse board membership | `sectors list --kind industry\|concept\|all`, `sectors members BK####` |
+| `ths` | ths (同花顺) | concept board list + per-stock concepts and company themes | `sectors list --kind ths_concept`, `sectors memberships ... --source ths\|all` |
+| `sw` | legulegu | Shenwan 2021 formal industry ladder (L1/L2/L3) | `sectors list --kind sw [--level 1\|2\|3]`, `sectors members 801xxx.SI`, `sectors memberships ... --source sw\|all` |
+
+- `sectors memberships` merges sources by default (`--source all`); each membership row carries a `source` field (`em` / `ths`) and Eastmoney rows use canonical `BK####` `source_id` values. The Shenwan ladder is emitted per item under `sw_industry` (`l1`/`l2`/`l3` with `industry_code` + `name`), not as a board membership.
+- Per-source failures stay item-level and surface as distinct warnings (`STOCK_MEMBERSHIP_PARTIAL`, `THS_MEMBERSHIP_PARTIAL`, `SW_INDUSTRY_PARTIAL`) with `degraded=true`.
+- `sectors list --kind ths_concept` returns identity rows (name/code/url, no quotes); board quote rankings remain Eastmoney-only under `sectors rankings`. The THS board list requires the optional `py_mini_racer` dependency and returns a clear `CAPABILITY_NOT_AVAILABLE` error when it is missing.
+- Industry ladders are deliberately two-tier: Eastmoney boards are the market-facing (盘面) view; Shenwan 2021 is the formal (正式) classification. Neither is replayable historically — both are current snapshots.
+
 `market stock-signals` joins the canonical realtime cross-section with deterministic discovery dimensions: return, amount, turnover, intraday activity expansion, stock-versus-industry divergence, prior-four-day persistence, and observed two-session limit activity. Every derived field exposes its basis or observation window; missing enrichment remains item-level `null` and is counted in `dimension_coverage`.
 OHLCV for a sector id uses `bars <sector-id>` — **not** `sectors bars`. Sector bars support canonical `1d` and `1m`; daily bars are unadjusted final facts and minute bars are provisional.
+
+## Generic fact composition
+
+- `scan-stocks` filters and ranks the current market cross-section. Filters are a JSON list of `{field,op,value}`. Unsupported historical dimensions are reported in `skipped_filters`; a non-current requested date is rejected.
+- `distance_20d_high` is a ratio (`-0.03` means 3% below the 20-day high). Other `*_pct` fields remain percent points.
+- `relative-intraday <symbol> --sector <BK####> [--trade-date YYYY-MM-DD]` aligns stock and sector 1-minute observations without inventing missing minutes. Previous closes are resolved for the requested session from daily bars.
+- A dated `relative-intraday` request requires an explicit sector because historical sector membership is not available. Current requests may use current-snapshot membership.
+- `sector-context` is current-session only. It composes sector ranking, members, limit activity, 1/3/5/20-day windows, minute summary, internal return distribution, amount concentration, and factual member rankings.
+- These commands never emit leader labels, strategy scores, predictions, or trade decisions.
 
 ## Features
 

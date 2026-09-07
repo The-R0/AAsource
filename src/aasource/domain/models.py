@@ -56,9 +56,54 @@ class Security:
     is_st: bool | None = None
     is_suspended: bool | None = None
     price_limit_pct: float | None = None
+    is_listed: bool | None = None
+    tradable: bool | None = None
+    valid_from: str | None = None
+    valid_to: str | None = None
+    event_time: str | None = None
+    publish_time: str | None = None
+    source: str = ProviderName.TDX
+    coverage_grade: str = "A"
+    execution_role: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass
+class SecurityPITEvent:
+    symbol: str
+    event_type: str  # "LISTING", "DELISTING", "ST_STATUS", "NAME_CHANGE", "SUSPENSION"
+    valid_from: str
+    valid_to: str | None = None
+    is_st: bool | None = None
+    is_suspended: bool | None = None
+    is_listed: bool | None = None
+    name: str | None = None
+    event_time: str | None = None
+    publish_time: str | None = None
+    source: str = ProviderName.TDX
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class CorporateAction:
+    symbol: str
+    ex_date: str
+    record_date: str | None = None
+    dividend_cash: float = 0.0  # CNY per 10 shares
+    split_bonus_ratio: float = 0.0  # shares bonus per 10 shares
+    split_rights_ratio: float = 0.0  # rights issue shares per 10 shares
+    rights_price: float = 0.0
+    split_factor: float = 1.0
+    accumulated_adj_factor: float = 1.0
+    source: str = ProviderName.TDX
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
 
 
 @dataclass

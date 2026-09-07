@@ -14,9 +14,11 @@ def run_sectors(
     limit: int = 100,
     trade_date: str | None = None,
     symbols: list[str] | None = None,
+    sw_level: int = 1,
+    membership_source: str = "all",
 ):
     if subcommand == "list":
-        data, sources, warnings, degraded = sectors_service.list_sectors(kind=kind, limit=limit)
+        data, sources, warnings, degraded = sectors_service.list_sectors(kind=kind, limit=limit, sw_level=sw_level)
         return ok("sectors.list", data, sources=sources, warnings=warnings, degraded=degraded)
     if subcommand == "rankings":
         data, sources, warnings, degraded = sectors_service.sector_rankings(kind=kind if kind != "all" else "industry", limit=limit)
@@ -25,7 +27,9 @@ def run_sectors(
         data, sources, warnings, degraded = sectors_service.sector_members(sector_id or "", limit=limit)
         return ok("sectors.members", data, sources=sources, warnings=warnings, degraded=degraded)
     if subcommand == "memberships":
-        data, sources, warnings, degraded = sectors_service.stock_memberships(symbols or [])
+        data, sources, warnings, degraded = sectors_service.stock_memberships(
+            symbols or [], source=membership_source
+        )
         return ok("sectors.memberships", data, sources=sources, warnings=warnings, degraded=degraded)
     if subcommand == "search":
         data, sources, warnings, degraded = sectors_service.sector_search(query or sector_id or "", limit=limit)

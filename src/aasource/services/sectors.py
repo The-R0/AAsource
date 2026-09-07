@@ -18,24 +18,104 @@ from aasource.providers.eastmoney_boards import (
     fetch_sector_minute,
     fetch_stock_memberships,
 )
+from aasource.providers.sw import (
+    SwProviderError,
+    fetch_sw_industry_members,
+    fetch_sw_industry_tree,
+    fetch_sw_stock_industry,
+)
+from aasource.providers.ths import (
+    ThsProviderError,
+    fetch_ths_concept_boards,
+    fetch_ths_stock_concepts,
+)
 from aasource.domain.identifiers import parse_symbol_input
 
 _BK = re.compile(r"^BK\d+$", re.IGNORECASE)
+_SW_CODE = re.compile(r"^\d{6}\.SI$", re.IGNORECASE)
+_MEMBERSHIP_SOURCES = ("all", "em", "ths", "sw")
+
+LIST_KINDS = ("all", "industry", "concept", "ths_concept", "sw")
 
 
-def _sources() -> list[SourceRef]:
+def _em_sources() -> list[SourceRef]:
     return [SourceRef(provider="eastmoney", role="sector_boards")]
 
 
-def list_sectors(*, kind: str = "all", limit: int = 200) -> tuple[dict[str, Any], list[SourceRef], list[WarningItem], bool]:
-    """List/rank sectors. kind: industry | concept | all."""
+def _ths_sources() -> list[SourceRef]:
+    return [SourceRef(provider="ths", role="concept_boards"), SourceRef(provider="ths", role="stock_concepts")]
+
+
+def _sw_sources() -> list[SourceRef]:
+    return [SourceRef(provider="legulegu", role="sw_industry")]
+
+
+def _sources() -> list[SourceRef]:
+    return _em_sources()
+
+
+def list_sectors(
+    *, kind: str = "all", limit: int = 200, sw_level: int = 1
+) -> tuple[dict[str, Any], list[SourceRef], list[WarningItem], bool]:
+    """List sectors. kind: industry | concept | all (Eastmoney) | ths_concept | sw."""
     warnings: list[WarningItem] = []
-    degraded = False
+    if kind not in LIST_KINDS:
+        raise AshareDataError(ErrorCode.INVALID_REQUEST, f"unsupported kind: {kind}")
+    if kind == "ths_concept":
+        try:
+            boards = fetch_ths_concept_boards()
+        except (ThsProviderError, AshareDataError, requests.RequestException, OSError, ValueError) as exc:
+            return (
+                {"sectors": [], "count": 0, "kind": kind, "errors": {"ths_concept": str(exc)}},
+                _ths_sources(),
+                [WarningItem(code="SECTOR_LIST_FAILED", message=f"ths_concept: {exc}")],
+                True,
+            )
+        boards.sort(key=lambda row: str(row.get("name") or ""))
+        return (
+            {
+                "sectors": boards[:limit],
+                "count": min(len(boards), limit),
+                "kind": kind,
+                "types": ["ths_concept"],
+                "note": "THS concept boards are name/code identity rows without quotes; board-quote rankings stay Eastmoney-only.",
+            },
+            _ths_sources(),
+            warnings,
+            False,
+        )
+    if kind == "sw":
+        level = int(sw_level) if int(sw_level) in (1, 2, 3) else 1
+        try:
+            tree = fetch_sw_industry_tree()
+        except (SwProviderError, AshareDataError, requests.RequestException, OSError, ValueError) as exc:
+            return (
+                {"sectors": [], "count": 0, "kind": kind, "errors": {"sw": str(exc)}},
+                _sw_sources(),
+                [WarningItem(code="SECTOR_LIST_FAILED", message=f"sw: {exc}")],
+                True,
+            )
+        rows = list(tree["levels"].get(f"l{level}") or [])
+        return (
+            {
+                "sectors": rows[:limit],
+                "count": min(len(rows), limit),
+                "kind": kind,
+                "level": level,
+                "classification": tree.get("classification"),
+                "types": [f"sw_industry_l{level}"],
+            },
+            _sw_sources(),
+            warnings,
+            False,
+        )
+    # Eastmoney quote-bearing kinds (all | industry | concept)
     kinds = ["industry", "concept"] if kind == "all" else [kind]
     if any(k not in {"industry", "concept"} for k in kinds):
         raise AshareDataError(ErrorCode.INVALID_REQUEST, f"unsupported kind: {kind}")
     sectors: list[dict[str, Any]] = []
     errors: dict[str, str] = {}
+    degraded = False
     per = max(1, int(limit) if kind != "all" else max(1, int(limit) // 2))
     for k in kinds:
         try:
@@ -80,6 +160,24 @@ def sector_members(
     *,
     limit: int = 500,
 ) -> tuple[dict[str, Any], list[SourceRef], list[WarningItem], bool]:
+    """Members for an Eastmoney board (BK####) or a Shenwan industry code (801xxx.SI)."""
+    needle = str(sector_id or "").strip()
+    if _SW_CODE.fullmatch(needle):
+        try:
+            members = fetch_sw_industry_members(needle, limit=limit)
+        except (SwProviderError, AshareDataError, requests.RequestException, OSError, ValueError) as exc:
+            raise AshareDataError(ErrorCode.PROVIDER_FAILURE, str(exc), retryable=True) from exc
+        return (
+            {
+                "sector_id": needle.upper(),
+                "classification": "SW2021",
+                "members": members,
+                "count": len(members),
+            },
+            _sw_sources(),
+            [],
+            False,
+        )
     sector_id = canonicalize_sector_id(sector_id)
     try:
         members = fetch_board_members(sector_id, limit=limit)
@@ -97,44 +195,113 @@ def sector_members(
     )
 
 
+def _fetch_per_symbol(
+    symbols: list[str],
+    worker,
+    *,
+    max_workers: int = 4,
+) -> tuple[dict[str, dict[str, Any]], dict[str, str]]:
+    """Run a per-symbol fetch concurrently; return {symbol: payload} and {symbol: error}."""
+    results: dict[str, dict[str, Any]] = {}
+    errors: dict[str, str] = {}
+    with ThreadPoolExecutor(max_workers=min(max_workers, max(1, len(symbols)))) as pool:
+        futures = {pool.submit(worker, symbol): symbol for symbol in symbols}
+        for future in as_completed(futures):
+            symbol = futures[future]
+            try:
+                results[symbol] = future.result()
+            except (EastmoneyProviderError, ThsProviderError, SwProviderError, AshareDataError, requests.RequestException, OSError, ValueError) as exc:
+                errors[symbol] = str(exc)
+    return results, errors
+
+
 def stock_memberships(
     symbols: list[str],
+    *,
+    source: str = "all",
 ) -> tuple[dict[str, Any], list[SourceRef], list[WarningItem], bool]:
-    """Resolve current industry/concept/tag relations for a bounded stock batch."""
+    """Resolve current industry/concept/tag relations for a bounded stock batch.
+
+    source selects the classification stack: ``em`` (Eastmoney boards),
+    ``ths`` (THS concepts and company themes), ``sw`` (Shenwan 2021 L1-L3),
+    or ``all`` (default) to merge every source per item.
+    """
+    if source not in _MEMBERSHIP_SOURCES:
+        raise AshareDataError(ErrorCode.INVALID_REQUEST, f"unsupported membership source: {source}")
     canonical = parse_symbol_input(symbols)
     if len(canonical) > 100:
         raise AshareDataError(ErrorCode.INVALID_REQUEST, "at most 100 symbols per membership request")
     items: dict[str, dict[str, Any]] = {}
-    errors: dict[str, str] = {}
-    with ThreadPoolExecutor(max_workers=min(8, max(1, len(canonical)))) as pool:
-        futures = {pool.submit(fetch_stock_memberships, symbol): symbol for symbol in canonical}
-        for future in as_completed(futures):
-            symbol = futures[future]
-            try:
-                items[symbol] = future.result()
-            except (EastmoneyProviderError, requests.RequestException, OSError, ValueError) as exc:
-                errors[symbol] = str(exc)
-    ordered = [items[symbol] for symbol in canonical if symbol in items]
-    warnings = []
-    if errors:
+    em_errors: dict[str, str] = {}
+    ths_errors: dict[str, str] = {}
+    sw_errors: dict[str, str] = {}
+
+    if source in {"all", "em"}:
+        em_rows, em_errors = _fetch_per_symbol(canonical, fetch_stock_memberships, max_workers=8)
+        for symbol, row in em_rows.items():
+            items.setdefault(symbol, {})["memberships"] = list(row.get("memberships") or [])
+    if source in {"all", "ths"}:
+        ths_rows, ths_errors = _fetch_per_symbol(canonical, fetch_ths_stock_concepts, max_workers=4)
+        for symbol, row in ths_rows.items():
+            item = items.setdefault(symbol, {})
+            item.setdefault("memberships", []).extend(row.get("concepts") or [])
+            item.setdefault("memberships", []).extend(row.get("company_themes") or [])
+    if source in {"all", "sw"}:
+        sw_rows, sw_errors = _fetch_per_symbol(canonical, fetch_sw_stock_industry, max_workers=4)
+        for symbol, row in sw_rows.items():
+            items.setdefault(symbol, {})["sw_industry"] = row.get("sw_industry")
+
+    ordered = [items.get(symbol, {"memberships": []}) | {"symbol": symbol} for symbol in canonical]
+    warnings: list[WarningItem] = []
+    failed_sources = sum(bool(errs) for errs in (em_errors, ths_errors, sw_errors))
+    if em_errors:
         warnings.append(
             WarningItem(
                 code="STOCK_MEMBERSHIP_PARTIAL",
-                message=f"{len(errors)} of {len(canonical)} symbols failed",
-                symbols=list(errors),
+                message=f"eastmoney: {len(em_errors)} of {len(canonical)} symbols failed",
+                symbols=list(em_errors),
             )
         )
+    if ths_errors:
+        warnings.append(
+            WarningItem(
+                code="THS_MEMBERSHIP_PARTIAL",
+                message=f"ths: {len(ths_errors)} of {len(canonical)} symbols failed",
+                symbols=list(ths_errors),
+            )
+        )
+    if sw_errors:
+        warnings.append(
+            WarningItem(
+                code="SW_INDUSTRY_PARTIAL",
+                message=f"sw: {len(sw_errors)} of {len(canonical)} symbols failed",
+                symbols=list(sw_errors),
+            )
+        )
+    errors: dict[str, str] = {}
+    for label, errs in (("em", em_errors), ("ths", ths_errors), ("sw", sw_errors)):
+        for symbol, message in errs.items():
+            errors[f"{label}:{symbol}"] = message
+    sources: list[SourceRef] = []
+    if source in {"all", "em"}:
+        sources.append(SourceRef(provider="eastmoney", role="sector_boards"))
+    if source in {"all", "ths"}:
+        sources.extend(_ths_sources())
+    if source in {"all", "sw"}:
+        sources.extend(_sw_sources())
     return (
         {
             "items": ordered,
             "count": len(ordered),
             "requested": len(canonical),
-            "errors": errors,
+            "source": source,
             "membership_type": "current_snapshot",
+            "errors": errors,
+            "sources_merged": [name for name, errs in (("em", em_errors), ("ths", ths_errors), ("sw", sw_errors)) if not errs],
         },
-        _sources(),
+        sources,
         warnings,
-        bool(errors),
+        failed_sources > 0,
     )
 
 

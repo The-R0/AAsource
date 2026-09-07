@@ -96,7 +96,7 @@ def _quote_session() -> requests.Session:
         session.trust_env = False
         session.headers.update(
             {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AShareDataHub/1.0",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AAsource/1.4",
                 "Referer": "https://stockapp.finance.qq.com/",
             }
         )

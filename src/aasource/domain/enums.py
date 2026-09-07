@@ -53,3 +53,36 @@ class QuoteStatus(StrEnum):
     LIVE = "live"
     DELAYED = "delayed"
     UNAVAILABLE = "unavailable"
+
+
+class BoardType(StrEnum):
+    SH_MAIN = "SH_MAIN"
+    SZ_MAIN = "SZ_MAIN"
+    CHINEXT = "CHINEXT"
+    STAR = "STAR"
+    BSE = "BSE"
+    INDEX = "INDEX"
+    ETF = "ETF"
+    OTHER = "OTHER"
+
+
+class ExecutionRole(StrEnum):
+    ACCESSIBLE = "ACCESSIBLE"
+    NON_EXECUTABLE_MARKET_ANCHOR = "NON_EXECUTABLE_MARKET_ANCHOR"
+    ACCESSIBLE_PROXY = "ACCESSIBLE_PROXY"
+    EXCLUDED_NON_EXECUTABLE = "EXCLUDED_NON_EXECUTABLE"
+
+
+class CoverageGrade(StrEnum):
+    A = "A"
+    B = "B"
+    C = "C"
+    EXPLORATORY = "EXPLORATORY"
+    DEGRADED = "DEGRADED"
+    UNAVAILABLE = "UNAVAILABLE"
+
+
+class AuditStatus(StrEnum):
+    MAIN_BOARD_DAILY_PIT_READY = "MAIN_BOARD_DAILY_PIT_READY"
+    NOT_READY = "NOT_READY"
+

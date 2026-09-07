@@ -26,7 +26,7 @@ pip install git+https://github.com/The-R0/AAsource.git
 pipx install git+https://github.com/The-R0/AAsource.git
 ```
 
-装完后命令是 `AAsource`。包名也是 `AAsource`，Python 里 `import aasource`。包里只有代码和不可变配置，不会创建数据目录，也不会写本地数据库。
+装完后命令是 `AAsource`。发行包名也是 `AAsource`，Python 内部导入名保留为 `aasource`。包里只有代码和不可变配置，不会创建数据目录，也不会写本地数据库。
 
 PyPI 发布后可以改用 `pip install AAsource` 或 `pipx install AAsource`。
 
@@ -87,8 +87,14 @@ stdout 永远是同一套 JSON envelope，失败也是 JSON，不走 stderr 文�
 | `limit-history` | 单票涨停活动史（由日线规则推导） |
 | `features` | 可复算特征，只消费 canonical bars |
 | `market` | 市场截面、宽度、排行、涨跌停 |
-| `sectors` | 板块身份、成分、排行 |
+| `sectors` | 板块身份、成分、排行；三套分类源：东财（盘面行业/概念）、同花顺概念（第二题材源）、申万 2021（正式行业口径），`memberships` 默认合并三源 |
 | `reference` | 龙虎榜、大宗、股东、基金持仓、资金流 |
+| `scan-stocks` | 当前全市场通用筛选与排序，不内置选股策略 |
+| `relative-intraday` | 个股与板块的同分钟相对收益、同步/背离、领先/滞后 |
+| `sector-context` | 当前板块快照、窗口收益、内部分布和成员事实前排 |
+| `pit-universe` | 按时点重建真实可交易主板股票池（排除科创/创业/北交/ST/停牌） |
+| `validate-order` | 验证标的是否满足账户权限与主板时点可交易规则 |
+| `quality-audit` | 运行14项主板质量验收并输出 MAIN_BOARD_DAILY_PIT_READY |
 
 ```bash
 AAsource catalog
@@ -101,13 +107,26 @@ AAsource features SH600036 --set trend_core,volume_core
 AAsource market movers --sort-by amount --limit 20
 AAsource market breadth
 AAsource sectors rankings --kind industry
+AAsource sectors memberships 600330 --source all
+AAsource sectors list --kind ths_concept --limit 50
+AAsource sectors list --kind sw --level 3 --limit 20
+AAsource sectors members 801086.SI --limit 50
 AAsource reference dragon-tiger --trade-date 20260807
 AAsource reference money-flow SH600519
+AAsource scan-stocks --filters '[{"field":"board","op":"in","value":["SH_MAIN","SZ_MAIN"]},{"field":"amount","op":">","value":1000000000}]' --rank-by relative_sector_1d --limit 30
+AAsource relative-intraday SH600036 --sector BK0475 --trade-date 2026-08-21
+AAsource sector-context BK0475 --member-limit 20
 ```
 
 代码用 `SH600519` / `SZ000001` / `BK0475`。价格是元/股，成交量是股，成交额是元，百分比是百分点。日线是 final，盘中线是 provisional。
 
 `auction` 只给当前开盘集合竞价快照，不存也不补历史。窗口外逐项返回 `CAPABILITY_NOT_AVAILABLE`。
+
+`scan-stocks` 只扫描当前交易截面；传入其他日期会明确拒绝。`distance_20d_high` 使用比例值，例如 `-0.03` 表示距 20 日高点低 3%。
+
+`relative-intraday` 不指定 `--trade-date` 时可以根据当前板块归属自动选择行业/概念；指定日期时必须同时显式传 `--sector`，避免用今天的板块归属污染历史。东财板块分钟只覆盖最近有限交易日，因此更早日期可能返回不可用。
+
+`sector-context` 是当前会话的一站式事实包，不返回“龙头”“核心”“买点”或评分。
 
 ## 数据源
 

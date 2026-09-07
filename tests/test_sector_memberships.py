@@ -22,6 +22,8 @@ def test_provider_normalizes_reverse_membership(monkeypatch) -> None:
 
     assert result["symbol"] == "SH600519"
     assert [item["relation_type"] for item in result["memberships"]] == ["industry", "concept", "region"]
+    assert [item["source_id"] for item in result["memberships"]] == ["BK0438", "BK0896", "BK0173"]
+    assert all(item["source"] == "em" for item in result["memberships"])
     assert not any("BOARD_" in key for item in result["memberships"] for key in item)
 
 
@@ -32,20 +34,22 @@ def test_service_preserves_partial_failure(monkeypatch) -> None:
         return {"symbol": symbol, "memberships": []}
 
     monkeypatch.setattr(sectors, "fetch_stock_memberships", fake)
-    data, _sources, warnings, degraded = sectors.stock_memberships(["600519", "000001"])
+    data, _sources, warnings, degraded = sectors.stock_memberships(["600519", "000001"], source="em")
 
     assert degraded is True
     assert data["requested"] == 2
-    assert data["count"] == 1
-    assert list(data["errors"]) == ["SZ000001"]
+    assert data["count"] == 2  # failed symbols stay item-level with empty memberships
+    assert list(data["errors"]) == ["em:SZ000001"]
     assert warnings[0].code == "STOCK_MEMBERSHIP_PARTIAL"
+    failed_item = next(item for item in data["items"] if item["symbol"] == "SZ000001")
+    assert failed_item["memberships"] == []
 
 
 def test_cli_exposes_memberships(monkeypatch) -> None:
     monkeypatch.setattr(
         sectors,
         "stock_memberships",
-        lambda symbols: ({"items": [{"symbol": symbols[0]}]}, [], [], False),
+        lambda symbols, **_kwargs: ({"items": [{"symbol": symbols[0]}]}, [], [], False),
     )
     args = build_parser().parse_args(["sectors", "memberships", "600519"])
     payload, code = dispatch(args)
